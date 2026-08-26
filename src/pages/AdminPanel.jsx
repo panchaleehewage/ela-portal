@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Shield, PlusCircle, FileText, CheckCircle } from 'lucide-react';
+import AdminRoster from '../components/AdminRoster';
 
 export default function AdminPanel() {
   const [events, setEvents] = useState([
@@ -128,6 +129,9 @@ export default function AdminPanel() {
           </div>
         </div>
       </div>
+
+      {/* Board & Member Roster with CSV Attendance Exporter */}
+      <AdminRoster />
     </div>
   );
 }

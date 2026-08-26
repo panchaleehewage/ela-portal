@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@asgardeo/auth-react';
-import { BookOpen, LogIn, LogOut, Shield, LayoutDashboard, Sparkles, Feather, Calendar } from 'lucide-react';
+import { BookOpen, LogIn, LogOut, Shield, LayoutDashboard, Sparkles, Feather, Calendar, Camera } from 'lucide-react';
 import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
+import Chronicler from './pages/Chronicler';
 
 function Navigation() {
   const { state, signIn, signOut } = useAuthContext();
@@ -34,6 +35,14 @@ function Navigation() {
       </Link>
 
       <nav className="flex items-center gap-3 sm:gap-6">
+        <Link
+          to="/chronicler"
+          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ela-dark hover:text-ela-orange transition"
+        >
+          <Camera className="w-4 h-4" />
+          The Chronicler
+        </Link>
+
         {state.isAuthenticated && (
           <>
             <Link
@@ -152,6 +161,7 @@ export default function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/chronicler" element={<Chronicler />} />
           <Route
             path="/dashboard"
             element={
@@ -173,4 +183,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-//git commit -m "feat: implement route protection with asgardeo token role validation, member dashboard, and admin panel"

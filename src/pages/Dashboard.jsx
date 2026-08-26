@@ -1,24 +1,11 @@
-import { useState } from 'react';
 import { useAuthContext } from '@asgardeo/auth-react';
-import { Vote, Calendar, CheckCircle2 } from 'lucide-react';
+import { Calendar } from 'lucide-react';
+import ThemePolls from '../components/ThemePolls';
+import LiteraryPassport from '../components/LiteraryPassport';
+import QuoteBoard from '../components/QuoteBoard';
 
 export default function Dashboard() {
   const { state } = useAuthContext();
-  const [votedOption, setVotedOption] = useState(null);
-  const [pollCounts, setPollCounts] = useState({
-    "Gothic Romance & Dark Academia": 14,
-    "High Fantasy & Worldbuilding": 22,
-    "Classic Victorian Satire": 9,
-  });
-
-  const handleVote = (option) => {
-    if (!votedOption) {
-      setPollCounts((prev) => ({ ...prev, [option]: prev[option] + 1 }));
-      setVotedOption(option);
-    }
-  };
-
-  const totalVotes = Object.values(pollCounts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-10">
@@ -32,7 +19,7 @@ export default function Dashboard() {
             Welcome, {state.displayName || state.username}!
           </h1>
           <p className="text-white/90 text-sm">
-            Next Fortnightly Circle: <span className="font-semibold underline">Saturday at 4:00 PM (Hall B)</span>
+            Next Fortnightly Circle: <span className="font-semibold underline">Saturday at 4:00 PM (Library Hall B)</span>
           </p>
         </div>
         <div className="bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/20 text-center">
@@ -42,59 +29,13 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Column: Polls and Events */}
+        {/* Main Column: Polls, Passport & Upcoming Gatherings */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Fortnightly Theme Poll */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-50 text-ela-orange flex items-center justify-center border border-orange-100">
-                  <Vote className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="font-serif font-bold text-lg text-ela-dark">Theme Polling Station</h2>
-                  <p className="text-xs text-ela-gray">Vote for the next book circle theme</p>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-ela-orange bg-orange-50 px-3 py-1 rounded-full">
-                {totalVotes} Votes Recorded
-              </span>
-            </div>
+          {/* Live Firestore Theme Poll */}
+          <ThemePolls />
 
-            <div className="space-y-3">
-              {Object.entries(pollCounts).map(([theme, count]) => {
-                const percentage = Math.round((count / totalVotes) * 100);
-                const isSelected = votedOption === theme;
-
-                return (
-                  <button
-                    key={theme}
-                    onClick={() => handleVote(theme)}
-                    disabled={votedOption !== null}
-                    className={`w-full text-left p-4 rounded-2xl border transition relative overflow-hidden ${
-                      isSelected
-                        ? 'border-ela-orange bg-orange-50/40'
-                        : 'border-orange-100 hover:border-orange-200 bg-white'
-                    }`}
-                  >
-                    <div
-                      className="absolute left-0 top-0 bottom-0 bg-orange-100/50 transition-all duration-500"
-                      style={{ width: `${percentage}%` }}
-                    />
-                    <div className="relative flex justify-between items-center text-sm">
-                      <span className="font-semibold text-ela-dark flex items-center gap-2">
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-ela-orange" />}
-                        {theme}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-ela-gray">
-                        {percentage}% ({count})
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* Literary Passport (Badges & Reading Journey) */}
+          <LiteraryPassport />
 
           {/* Upcoming Gatherings */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs">
@@ -113,7 +54,7 @@ export default function Dashboard() {
                 <div>
                   <span className="text-[10px] font-bold text-ela-orange uppercase tracking-wider">Book Club #14</span>
                   <h3 className="font-bold text-ela-dark text-base">The Brontë Sisters & Romanticism</h3>
-                  <p className="text-xs text-ela-gray mt-0.5">Aug 29, 2026 • 4:00 PM • Library Hall</p>
+                  <p className="text-xs text-ela-gray mt-0.5">Aug 29, 2026 • 4:00 PM • Library Hall B</p>
                 </div>
                 <button className="px-4 py-2 bg-ela-dark hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-xl transition">
                   RSVP
@@ -134,7 +75,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Sidebar: Profile Badge & Quick Stats */}
+        {/* Sidebar: Profile Badge & Anonymous Quote Board */}
         <div className="space-y-6">
           <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-xs text-center">
             <div className="w-20 h-20 bg-orange-100 text-ela-orange rounded-full flex items-center justify-center font-serif text-3xl font-bold mx-auto mb-4 border-2 border-ela-orange/20">
@@ -154,6 +95,9 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* Anonymous Quote of the Fortnight */}
+          <QuoteBoard />
         </div>
       </div>
     </div>
