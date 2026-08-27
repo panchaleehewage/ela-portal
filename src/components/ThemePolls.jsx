@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuthContext } from '@asgardeo/auth-react';
 import { db } from '../firebase';
-import { doc, getDoc, updateDoc, arrayUnion, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
-import { Vote, CheckCircle2, History, Sparkles } from 'lucide-react';
+import { doc, updateDoc, arrayUnion, onSnapshot, collection, query, where } from 'firebase/firestore';
+import { Vote, CheckCircle2, History } from 'lucide-react';
 
 export default function ThemePolls() {
   const { state } = useAuthContext();
-  const [activePoll, setActivePoll] = useState(null);
+  const [activePolls, setActivePolls] = useState([]);
   const [archivePolls, setArchivePolls] = useState([]);
   const [showArchive, setShowArchive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -14,31 +14,37 @@ export default function ThemePolls() {
   const userId = state.sub || state.username;
 
   useEffect(() => {
-    // Listen to the active poll in real-time
-    const pollRef = doc(db, 'polls', 'current_poll');
-    const unsub = onSnapshot(pollRef, (snap) => {
-      if (snap.exists()) {
-        setActivePoll(snap.data());
-      }
+    // Listen to all active polls
+    const activeQ = query(collection(db, 'polls'), where('status', '==', 'active'));
+    const unsubActive = onSnapshot(activeQ, (snap) => {
+      const polls = [];
+      snap.forEach((d) => polls.push({ id: d.id, ...d.data() }));
+      // Sort polls such that theme comes before attendance or newer first
+      polls.sort((a, b) => b.createdAt - a.createdAt);
+      setActivePolls(polls);
       setLoading(false);
     });
 
     // Fetch closed archive polls
-    async function fetchArchives() {
-      const q = query(collection(db, 'polls'), where('status', '==', 'archived'));
-      const snap = await getDocs(q);
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setArchivePolls(docs);
-    }
-    fetchArchives();
+    const closedQ = query(collection(db, 'polls'), where('status', '==', 'closed'));
+    const unsubClosed = onSnapshot(closedQ, (snap) => {
+      const archives = [];
+      snap.forEach((d) => archives.push({ id: d.id, ...d.data() }));
+      setArchivePolls(archives);
+    });
 
-    return () => unsub();
+    return () => {
+      unsubActive();
+      unsubClosed();
+    };
   }, []);
 
-  const handleVote = async (optionIndex) => {
-    if (!activePoll || hasVoted) return;
-    const pollRef = doc(db, 'polls', 'current_poll');
-    const updatedOptions = [...activePoll.options];
+  const handleVote = async (poll, optionIndex) => {
+    const hasVoted = poll.voterIds?.includes(userId);
+    if (!poll || hasVoted) return;
+
+    const pollRef = doc(db, 'polls', poll.id);
+    const updatedOptions = [...poll.options];
     updatedOptions[optionIndex].votes = (updatedOptions[optionIndex].votes || 0) + 1;
 
     await updateDoc(pollRef, {
@@ -47,11 +53,7 @@ export default function ThemePolls() {
     });
   };
 
-  if (loading) return <div className="p-6 bg-white rounded-3xl animate-pulse text-xs">Loading poll...</div>;
-  if (!activePoll) return null;
-
-  const hasVoted = activePoll.voterIds?.includes(userId);
-  const totalVotes = activePoll.options.reduce((acc, opt) => acc + (opt.votes || 0), 0);
+  if (loading) return <div className="p-6 bg-white rounded-3xl animate-pulse text-xs">Loading polls...</div>;
 
   return (
     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs space-y-6">
@@ -61,8 +63,8 @@ export default function ThemePolls() {
             <Vote className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-serif font-bold text-lg text-ela-dark">{activePoll.title}</h2>
-            <p className="text-xs text-ela-gray">{activePoll.description || 'Cast your vote for the upcoming fortnight'}</p>
+            <h2 className="font-serif font-bold text-lg text-ela-dark">Community Polls</h2>
+            <p className="text-xs text-ela-gray">Vote on upcoming themes and confirm attendance</p>
           </div>
         </div>
 
@@ -71,68 +73,89 @@ export default function ThemePolls() {
           className="flex items-center gap-1.5 text-xs font-semibold text-ela-gray hover:text-ela-orange transition"
         >
           <History className="w-4 h-4" />
-          {showArchive ? 'Active Poll' : 'View Archive'}
+          {showArchive ? 'Active Polls' : 'View Archive'}
         </button>
       </div>
 
       {!showArchive ? (
-        <div className="space-y-3">
-          {activePoll.options.map((opt, idx) => {
-            const count = opt.votes || 0;
-            const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+        <div className="space-y-6">
+          {activePolls.length === 0 ? (
+            <p className="text-xs text-ela-gray italic">No active polls at the moment.</p>
+          ) : (
+            activePolls.map((poll) => {
+              const hasVoted = poll.voterIds?.includes(userId);
+              const totalVotes = poll.options.reduce((acc, opt) => acc + (opt.votes || 0), 0);
 
-            return (
-              <button
-                key={idx}
-                onClick={() => handleVote(idx)}
-                disabled={hasVoted}
-                className={`w-full text-left p-4 rounded-2xl border transition relative overflow-hidden ${
-                  hasVoted
-                    ? 'border-orange-100 bg-orange-50/20 cursor-default'
-                    : 'border-orange-100 hover:border-ela-orange bg-white'
-                }`}
-              >
-                {hasVoted && (
-                  <div
-                    className="absolute left-0 top-0 bottom-0 bg-orange-100/60 transition-all duration-500"
-                    style={{ width: `${percentage}%` }}
-                  />
-                )}
-                <div className="relative flex justify-between items-center text-sm">
-                  <span className="font-semibold text-ela-dark flex items-center gap-2">
-                    {hasVoted && <CheckCircle2 className="w-4 h-4 text-ela-orange" />}
-                    {opt.text}
-                  </span>
-                  {hasVoted && (
-                    <span className="text-xs font-mono font-bold text-ela-gray">
-                      {percentage}% ({count})
-                    </span>
-                  )}
+              return (
+                <div key={poll.id} className="space-y-3 bg-orange-50/20 p-4 rounded-2xl border border-orange-100/60">
+                  <h3 className="font-bold text-ela-dark text-sm">{poll.title}</h3>
+                  {poll.description && <p className="text-xs text-ela-gray">{poll.description}</p>}
+
+                  <div className="space-y-2 mt-3">
+                    {poll.options.map((opt, idx) => {
+                      const count = opt.votes || 0;
+                      const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleVote(poll, idx)}
+                          disabled={hasVoted}
+                          className={`w-full text-left p-3 rounded-xl border transition relative overflow-hidden ${hasVoted
+                              ? 'border-orange-100 bg-orange-50/40 cursor-default'
+                              : 'border-orange-100 hover:border-ela-orange bg-white shadow-sm'
+                            }`}
+                        >
+                          {hasVoted && (
+                            <div
+                              className="absolute left-0 top-0 bottom-0 bg-orange-100/60 transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          )}
+                          <div className="relative flex justify-between items-center text-xs">
+                            <span className="font-semibold text-ela-dark flex items-center gap-2">
+                              {hasVoted && <CheckCircle2 className="w-3.5 h-3.5 text-ela-orange" />}
+                              {opt.text}
+                            </span>
+                            {hasVoted && (
+                              <span className="font-mono font-bold text-ela-gray">
+                                {percentage}% ({count})
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between items-center pt-2 text-[10px] font-semibold text-ela-gray">
+                    <span>{hasVoted ? '✓ Vote submitted (locked)' : 'Select one option to cast your vote'}</span>
+                    <span>{totalVotes} total votes</span>
+                  </div>
                 </div>
-              </button>
-            );
-          })}
-
-          <div className="flex justify-between items-center pt-2 text-[11px] font-semibold text-ela-gray">
-            <span>{hasVoted ? '✓ Vote submitted (locked)' : 'Select one theme to cast your vote'}</span>
-            <span>{totalVotes} total votes</span>
-          </div>
+              );
+            })
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-ela-dark uppercase tracking-wider">Winning Themes from Past Fortnights</h3>
+          <h3 className="text-xs font-bold text-ela-dark uppercase tracking-wider">Past Polls</h3>
           {archivePolls.length === 0 ? (
-            <p className="text-xs text-ela-gray italic">No past archives available yet.</p>
+            <p className="text-xs text-ela-gray italic">No archived polls available yet.</p>
           ) : (
-            archivePolls.map((arc) => (
-              <div key={arc.id} className="p-4 rounded-2xl border border-orange-100/70 bg-orange-50/30 flex justify-between items-center">
-                <div>
-                  <span className="text-[10px] font-bold text-ela-orange uppercase">{arc.fortnightLabel}</span>
-                  <h4 className="font-serif font-bold text-sm text-ela-dark">{arc.winnerTitle}</h4>
+            archivePolls.map((arc) => {
+              const totalVotes = arc.options.reduce((acc, opt) => acc + (opt.votes || 0), 0);
+              const winner = [...arc.options].sort((a, b) => (b.votes || 0) - (a.votes || 0))[0];
+
+              return (
+                <div key={arc.id} className="p-4 rounded-2xl border border-orange-100/70 bg-orange-50/30 space-y-1">
+                  <h4 className="font-serif font-bold text-sm text-ela-dark">{arc.title}</h4>
+                  <div className="flex justify-between items-center text-xs text-ela-gray">
+                    <span>Winner: <span className="font-semibold text-ela-orange">{winner?.text || 'N/A'}</span></span>
+                    <span className="font-mono font-bold">{totalVotes} votes</span>
+                  </div>
                 </div>
-                <span className="text-xs font-mono font-bold text-ela-gray">{arc.totalVotes} votes</span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

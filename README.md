@@ -1,16 +1,60 @@
-# React + Vite
+# English Literary Association (ELA) — Club Management Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An enterprise-grade club member and executive management portal developed for the **English Literary Association (ELA)**, secured with **WSO2 Asgardeo Identity & Access Management**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Overview & Problem Solved
+University student clubs often struggle with manual event registrations, unverified attendance records, and non-transparent voting mechanisms. The **ELA Portal** provides a centralized, role-governed digital hub that enables:
+- **Self-Service Member Onboarding:** Seamless sign-up and authentication powered by OpenID Connect (OIDC).
+- **Granular Role-Based Access Control (RBAC):** Distinct capability tiers for General Members vs. Executive Board members (President, VPs, Secretaries).
+- **Fortnightly Theme Voting with Vote-Locking:** Real-time polling with tamper-resistant 1-vote-per-member constraints.
+- **Digital Member Literary Passport:** Tracking session attendance, club awards, and reading milestones.
+- **Executive Board Console & CSV Attendance Exporter:** Event publishing and 1-click roster data exports for administrative records.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🔐 WSO2 Asgardeo Integration Highlights
+- **OIDC/OAuth 2.0 SPA Authentication:** Integrated via `@asgardeo/auth-react` to handle secure session lifecycle, authorization code flows with PKCE, and token decoding.
+- **Role & Group Claim Mapping:** Custom claim mappings in Asgardeo project schemas allow client-side route guards (`ProtectedRoute`) to dynamically enforce role access without hardcoded user lists.
+- **Identity Federation & Self-Registration:** Configured via the Asgardeo Admin Console to enable automated onboarding with zero server-side authentication overhead.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🛠️ Architecture & Tech Stack
+- **Frontend:** React (Vite) + Tailwind CSS (Custom ELA Brand Palette) + Lucide Icons
+- **Identity & Access Management:** WSO2 Asgardeo
+- **Persistence & Real-Time Engine:** Firebase Cloud Firestore
+- **Routing & Route Guards:** React Router DOM v6
+
+---
+
+## 🚀 Local Setup & Installation
+
+### 1. Clone & Install Dependencies
+\`\`\`bash
+git clone https://github.com/panchaleehewage/ela-portal.git
+cd ela-portal
+npm install
+\`\`\`
+
+### 2. Configure Environment Variables
+Create a \`.env\` file in the root directory:
+\`\`\`env
+VITE_ASGARDEO_CLIENT_ID=your_asgardeo_client_id
+VITE_ASGARDEO_BASE_URL=https://api.asgardeo.io/t/your_org_name
+VITE_ASGARDEO_REDIRECT_URL=http://localhost:5173
+
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+\`\`\`
+
+### 3. Run Development Server
+\`\`\`bash
+npm run dev
+\`\`\`
+Access the portal at \`http://localhost:5173\`.
