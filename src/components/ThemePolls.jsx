@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthContext } from '@asgardeo/auth-react';
 import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, onSnapshot, collection, query, where } from 'firebase/firestore';
-import { Vote, CheckCircle2, History } from 'lucide-react';
+import { Vote, CheckCircle2, History, Sparkles } from 'lucide-react';
 
 export default function ThemePolls() {
   const { state } = useAuthContext();
@@ -16,22 +16,32 @@ export default function ThemePolls() {
   useEffect(() => {
     // Listen to all active polls
     const activeQ = query(collection(db, 'polls'), where('status', '==', 'active'));
-    const unsubActive = onSnapshot(activeQ, (snap) => {
-      const polls = [];
-      snap.forEach((d) => polls.push({ id: d.id, ...d.data() }));
-      // Sort polls such that theme comes before attendance or newer first
-      polls.sort((a, b) => b.createdAt - a.createdAt);
-      setActivePolls(polls);
-      setLoading(false);
-    });
+    const unsubActive = onSnapshot(
+      activeQ,
+      (snap) => {
+        const polls = [];
+        snap.forEach((d) => polls.push({ id: d.id, ...d.data() }));
+        polls.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setActivePolls(polls);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Firestore Error in ThemePolls (active):', err);
+        setLoading(false);
+      }
+    );
 
     // Fetch closed archive polls
     const closedQ = query(collection(db, 'polls'), where('status', '==', 'closed'));
-    const unsubClosed = onSnapshot(closedQ, (snap) => {
-      const archives = [];
-      snap.forEach((d) => archives.push({ id: d.id, ...d.data() }));
-      setArchivePolls(archives);
-    });
+    const unsubClosed = onSnapshot(
+      closedQ,
+      (snap) => {
+        const archives = [];
+        snap.forEach((d) => archives.push({ id: d.id, ...d.data() }));
+        setArchivePolls(archives);
+      },
+      (err) => console.error('Firestore Error in ThemePolls (closed):', err)
+    );
 
     return () => {
       unsubActive();
@@ -47,10 +57,14 @@ export default function ThemePolls() {
     const updatedOptions = [...poll.options];
     updatedOptions[optionIndex].votes = (updatedOptions[optionIndex].votes || 0) + 1;
 
-    await updateDoc(pollRef, {
-      options: updatedOptions,
-      voterIds: arrayUnion(userId)
-    });
+    try {
+      await updateDoc(pollRef, {
+        options: updatedOptions,
+        voterIds: arrayUnion(userId)
+      });
+    } catch (err) {
+      console.error('Firestore Error in ThemePolls (vote):', err);
+    }
   };
 
   if (loading) return <div className="p-6 bg-white rounded-3xl animate-pulse text-xs">Loading polls...</div>;
@@ -80,7 +94,13 @@ export default function ThemePolls() {
       {!showArchive ? (
         <div className="space-y-6">
           {activePolls.length === 0 ? (
-            <p className="text-xs text-ela-gray italic">No active polls at the moment.</p>
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <div className="w-10 h-10 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-ela-orange" />
+              </div>
+              <p className="text-sm font-semibold text-ela-dark">No active theme polls at the moment.</p>
+              <p className="text-xs text-ela-gray">Stay tuned for the next fortnight!</p>
+            </div>
           ) : (
             activePolls.map((poll) => {
               const hasVoted = poll.voterIds?.includes(userId);
@@ -102,8 +122,8 @@ export default function ThemePolls() {
                           onClick={() => handleVote(poll, idx)}
                           disabled={hasVoted}
                           className={`w-full text-left p-3 rounded-xl border transition relative overflow-hidden ${hasVoted
-                              ? 'border-orange-100 bg-orange-50/40 cursor-default'
-                              : 'border-orange-100 hover:border-ela-orange bg-white shadow-sm'
+                            ? 'border-orange-100 bg-orange-50/40 cursor-default'
+                            : 'border-orange-100 hover:border-ela-orange bg-white shadow-sm'
                             }`}
                         >
                           {hasVoted && (

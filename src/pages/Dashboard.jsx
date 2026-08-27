@@ -20,9 +20,13 @@ function getCleanName(state) {
 
 export default function Dashboard() {
   const { state } = useAuthContext();
-  const userId = state.sub || state.username;
+  const userId =
+    state.sub ||
+    state.username ||
+    (state.email ? state.email.replace(/[@.]/g, '_') : null);
 
   const [memberData, setMemberData] = useState(null);
+  const [memberLoading, setMemberLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
 
@@ -31,22 +35,29 @@ export default function Dashboard() {
 
     // Member Initialization
     const initMember = async () => {
-      const memberRef = doc(db, 'members', userId);
-      const snap = await getDoc(memberRef);
-      if (!snap.exists()) {
-        const newMember = {
-          userId,
-          displayName: state.displayName || state.username || '',
-          email: state.email || '',
-          membershipStatus: 'Active 2026',
-          badges: [],
-          booksRead: [],
-          attendedEvents: []
-        };
-        await setDoc(memberRef, newMember);
-        setMemberData(newMember);
-      } else {
-        setMemberData(snap.data());
+      try {
+        const memberRef = doc(db, 'members', userId);
+        const snap = await getDoc(memberRef);
+        if (!snap.exists()) {
+          const newMember = {
+            userId,
+            displayName: state.displayName || getCleanName(state),
+            email: state.email || '',
+            membershipStatus: 'Active 2026',
+            badges: [],
+            booksRead: [],
+            attendedEvents: [],
+            createdAt: new Date(),
+          };
+          await setDoc(memberRef, newMember);
+          setMemberData(newMember);
+        } else {
+          setMemberData(snap.data());
+        }
+      } catch (err) {
+        console.error('Firestore Error in Dashboard (initMember):', err);
+      } finally {
+        setMemberLoading(false);
       }
     };
     initMember();
@@ -56,20 +67,28 @@ export default function Dashboard() {
       collection(db, 'events'),
       where('type', '==', 'upcoming')
     );
-    const unsubEvents = onSnapshot(eventsQ, (snapshot) => {
-      const eventsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      eventsData.sort((a, b) => new Date(a.date) - new Date(b.date));
-      setUpcomingEvents(eventsData);
-    });
+    const unsubEvents = onSnapshot(
+      eventsQ,
+      (snapshot) => {
+        const eventsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        eventsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+        setUpcomingEvents(eventsData);
+      },
+      (err) => console.error('Firestore Error in Dashboard (events):', err)
+    );
 
     // Subscribe to announcements
     const annQ = query(
       collection(db, 'announcements'),
       orderBy('createdAt', 'desc')
     );
-    const unsubAnn = onSnapshot(annQ, (snapshot) => {
-      setAnnouncements(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const unsubAnn = onSnapshot(
+      annQ,
+      (snapshot) => {
+        setAnnouncements(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (err) => console.error('Firestore Error in Dashboard (announcements):', err)
+    );
 
     return () => {
       unsubEvents();
@@ -100,7 +119,9 @@ export default function Dashboard() {
         </div>
         <div className="bg-white/10 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/20 text-center shrink-0">
           <span className="text-xs uppercase font-semibold tracking-wider text-white/80 block">Membership Status</span>
-          <span className="font-serif font-bold text-lg text-white">{memberData?.membershipStatus || 'Loading…'}</span>
+          <span className="font-serif font-bold text-lg text-white">
+            {memberLoading ? 'Loading…' : (memberData?.membershipStatus || 'Active 2026')}
+          </span>
         </div>
       </div>
 

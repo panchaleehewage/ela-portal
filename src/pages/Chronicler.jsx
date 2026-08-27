@@ -14,11 +14,18 @@ export default function Chronicler() {
       orderBy('date', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const events = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setPastEvents(events);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const events = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setPastEvents(events);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Firestore Error in Chronicler:', err);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);

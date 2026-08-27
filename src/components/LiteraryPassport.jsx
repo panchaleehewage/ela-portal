@@ -16,12 +16,19 @@ export default function LiteraryPassport() {
   useEffect(() => {
     if (!userId) return;
     const userRef = doc(db, 'members', userId);
-    const unsub = onSnapshot(userRef, (snap) => {
-      if (snap.exists()) {
-        setMemberData(snap.data());
+    const unsub = onSnapshot(
+      userRef,
+      (snap) => {
+        if (snap.exists()) {
+          setMemberData(snap.data());
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Firestore Error in LiteraryPassport:', err);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => unsub();
   }, [userId]);
@@ -31,18 +38,33 @@ export default function LiteraryPassport() {
     if (!newBook.title || !newBook.author) return;
 
     const userRef = doc(db, 'members', userId);
-    await updateDoc(userRef, {
-      booksRead: arrayUnion({
-        ...newBook,
-        readDate: new Date().toISOString().split('T')[0]
-      })
-    });
-    setNewBook({ title: '', author: '', genre: '' });
-    setShowLogModal(false);
+    try {
+      await updateDoc(userRef, {
+        booksRead: arrayUnion({
+          ...newBook,
+          readDate: new Date().toISOString().split('T')[0]
+        })
+      });
+      setNewBook({ title: '', author: '', genre: '' });
+      setShowLogModal(false);
+    } catch (err) {
+      console.error('Firestore Error in LiteraryPassport (logBook):', err);
+    }
   };
 
-  if (loading) return <div className="p-6 bg-white rounded-3xl animate-pulse text-xs border border-orange-100 shadow-xs">Loading Passport...</div>;
-  if (!memberData) return null;
+  if (loading) return (
+    <div className="p-6 bg-white rounded-3xl border border-orange-100 shadow-xs animate-pulse">
+      <div className="h-4 bg-orange-50 rounded w-1/2 mb-3" />
+      <div className="h-3 bg-orange-50 rounded w-3/4" />
+    </div>
+  );
+
+  if (!memberData) return (
+    <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-xs text-center py-10">
+      <p className="text-sm font-semibold text-ela-dark">Initialising your Literary Passport…</p>
+      <p className="text-xs text-ela-gray mt-1">Your profile is being set up. Refresh if this persists.</p>
+    </div>
+  );
 
   const memberBadges = memberData.badges || [];
   const booksRead = memberData.booksRead || [];
@@ -64,7 +86,10 @@ export default function LiteraryPassport() {
         <h3 className="text-xs font-bold text-ela-dark uppercase tracking-wider mb-3">Earned Association Badges</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {memberBadges.length === 0 ? (
-            <p className="text-xs text-ela-gray italic col-span-full">No badges earned yet. Participate in events!</p>
+            <div className="col-span-full p-4 rounded-2xl bg-orange-50/40 border border-orange-100 border-dashed text-center">
+              <p className="text-xs font-semibold text-ela-dark">No badges assigned yet.</p>
+              <p className="text-[11px] text-ela-gray mt-0.5">Participate in ELA events to earn association badges.</p>
+            </div>
           ) : (
             memberBadges.map((badge, i) => (
               <div key={i} className="p-3.5 rounded-2xl bg-orange-50/40 border border-orange-100 flex items-start gap-3">
@@ -112,7 +137,10 @@ export default function LiteraryPassport() {
 
         <div className="space-y-2">
           {booksRead.length === 0 ? (
-            <p className="text-xs text-ela-gray italic">No books logged yet.</p>
+            <div className="p-4 rounded-2xl bg-orange-50/40 border border-orange-100 border-dashed text-center">
+              <p className="text-xs font-semibold text-ela-dark">No books recorded yet.</p>
+              <p className="text-[11px] text-ela-gray mt-0.5">Use the <span className="text-ela-orange font-bold">Log Book</span> button above to add your first read.</p>
+            </div>
           ) : (
             booksRead.map((book, i) => (
               <div key={i} className="p-3 rounded-xl border border-orange-100/80 hover:bg-orange-50/30 transition flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs gap-2 sm:gap-0">

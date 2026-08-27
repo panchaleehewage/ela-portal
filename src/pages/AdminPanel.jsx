@@ -43,10 +43,15 @@ function TabEvents() {
     e.preventDefault();
     if (!form.title || !form.date) return;
     setSaving(true);
-    await addDoc(collection(db, 'events'), { ...form, createdAt: serverTimestamp() });
-    setForm(empty);
-    setSaving(false);
-    setToast('Event published to Firestore!');
+    try {
+      await addDoc(collection(db, 'events'), { ...form, createdAt: serverTimestamp() });
+      setForm(empty);
+      setToast('Event published to Firestore!');
+    } catch (err) {
+      console.error('Firestore Error in AdminPanel (addEvent):', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -124,11 +129,15 @@ function TabAnnouncements() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'announcements'), (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setPosted(data);
-    });
+    const unsub = onSnapshot(
+      collection(db, 'announcements'),
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setPosted(data);
+      },
+      (err) => console.error('Firestore Error in AdminPanel (announcements):', err)
+    );
     return () => unsub();
   }, []);
 
@@ -136,10 +145,15 @@ function TabAnnouncements() {
     e.preventDefault();
     if (!form.title) return;
     setSaving(true);
-    await addDoc(collection(db, 'announcements'), { ...form, createdAt: serverTimestamp() });
-    setForm(empty);
-    setSaving(false);
-    setToast('Announcement broadcast to all members!');
+    try {
+      await addDoc(collection(db, 'announcements'), { ...form, createdAt: serverTimestamp() });
+      setForm(empty);
+      setToast('Announcement broadcast to all members!');
+    } catch (err) {
+      console.error('Firestore Error in AdminPanel (addAnnouncement):', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -199,11 +213,15 @@ function TabPolls() {
 
   useEffect(() => {
     const q = query(collection(db, 'polls'), where('status', '==', 'active'));
-    const unsub = onSnapshot(q, (snap) => {
-      const polls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      polls.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setActivePolls(polls);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const polls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        polls.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setActivePolls(polls);
+      },
+      (err) => console.error('Firestore Error in AdminPanel (polls):', err)
+    );
     return () => unsub();
   }, []);
 
@@ -221,25 +239,35 @@ function TabPolls() {
     const cleanOpts = form.options.filter((o) => o.trim());
     if (!form.title || cleanOpts.length < 2) return;
     setSaving(true);
-    await addDoc(collection(db, 'polls'), {
-      title: form.title,
-      description: form.description,
-      type: form.type,
-      eventId: form.eventId || null,
-      options: cleanOpts.map((text) => ({ text, votes: 0 })),
-      voterIds: [],
-      status: 'active',
-      createdAt: serverTimestamp()
-    });
-    setForm(emptyForm);
-    setSaving(false);
-    setToast('Poll is now live!');
+    try {
+      await addDoc(collection(db, 'polls'), {
+        title: form.title,
+        description: form.description,
+        type: form.type,
+        eventId: form.eventId || null,
+        options: cleanOpts.map((text) => ({ text, votes: 0 })),
+        voterIds: [],
+        status: 'active',
+        createdAt: serverTimestamp()
+      });
+      setForm(emptyForm);
+      setToast('Poll is now live!');
+    } catch (err) {
+      console.error('Firestore Error in AdminPanel (addPoll):', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const closePoll = async (pollId) => {
     setClosing(pollId);
-    await updateDoc(doc(db, 'polls', pollId), { status: 'closed' });
-    setClosing('');
+    try {
+      await updateDoc(doc(db, 'polls', pollId), { status: 'closed' });
+    } catch (err) {
+      console.error('Firestore Error in AdminPanel (closePoll):', err);
+    } finally {
+      setClosing('');
+    }
   };
 
   return (
@@ -367,15 +395,23 @@ function TabMembers() {
   const [toast, setToast] = useState('');
 
   useEffect(() => {
-    const unsubM = onSnapshot(collection(db, 'members'), (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      data.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
-      setMembers(data);
-    });
+    const unsubM = onSnapshot(
+      collection(db, 'members'),
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        data.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+        setMembers(data);
+      },
+      (err) => console.error('Firestore Error in AdminPanel (members):', err)
+    );
 
-    const unsubE = onSnapshot(collection(db, 'events'), (snap) => {
-      setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const unsubE = onSnapshot(
+      collection(db, 'events'),
+      (snap) => {
+        setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (err) => console.error('Firestore Error in AdminPanel (eventsList):', err)
+    );
 
     return () => { unsubM(); unsubE(); };
   }, []);
@@ -384,24 +420,34 @@ function TabMembers() {
     e.preventDefault();
     if (!selected || !badge.title) return;
     setSaving(true);
-    await updateDoc(doc(db, 'members', selected.id), {
-      badges: arrayUnion({ title: badge.title, desc: badge.desc, icon: badge.icon || '🎖️' })
-    });
-    setBadge({ title: '', desc: '', icon: '' });
-    setSaving(false);
-    setToast(`Badge "${badge.title}" added to ${selected.displayName}!`);
+    try {
+      await updateDoc(doc(db, 'members', selected.id), {
+        badges: arrayUnion({ title: badge.title, desc: badge.desc, icon: badge.icon || '🎖️' })
+      });
+      setBadge({ title: '', desc: '', icon: '' });
+      setToast(`Badge "${badge.title}" added to ${selected.displayName}!`);
+    } catch (err) {
+      console.error('Firestore Error in AdminPanel (addBadge):', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const logAttendance = async (e) => {
     e.preventDefault();
     if (!selected || !eventId) return;
     setSaving(true);
-    await updateDoc(doc(db, 'members', selected.id), {
-      attendedEvents: arrayUnion(eventId)
-    });
-    setEventId('');
-    setSaving(false);
-    setToast(`Attendance logged for ${selected.displayName}!`);
+    try {
+      await updateDoc(doc(db, 'members', selected.id), {
+        attendedEvents: arrayUnion(eventId)
+      });
+      setEventId('');
+      setToast(`Attendance logged for ${selected.displayName}!`);
+    } catch (err) {
+      console.error('Firestore Error in AdminPanel (logAttendance):', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -415,8 +461,13 @@ function TabMembers() {
           className={inputCls}
           value={selected?.id || ''}
           onChange={(e) => setSelected(members.find((m) => m.id === e.target.value) || null)}
+          disabled={members.length === 0}
         >
-          <option value="">— Choose a member —</option>
+          {members.length === 0 ? (
+            <option value="">— No registered members found —</option>
+          ) : (
+            <option value="">— Choose a member —</option>
+          )}
           {members.map((m) => (
             <option key={m.id} value={m.id}>{m.displayName || m.email || m.id}</option>
           ))}
@@ -525,8 +576,8 @@ export default function AdminPanel() {
             key={id}
             onClick={() => setActiveTab(id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-xl border border-b-0 transition ${activeTab === id
-                ? 'bg-white border-orange-100 text-ela-orange shadow-xs'
-                : 'bg-orange-50/40 border-transparent text-ela-gray hover:text-ela-dark hover:bg-orange-50'
+              ? 'bg-white border-orange-100 text-ela-orange shadow-xs'
+              : 'bg-orange-50/40 border-transparent text-ela-gray hover:text-ela-dark hover:bg-orange-50'
               }`}
           >
             <Icon className="w-3.5 h-3.5" />

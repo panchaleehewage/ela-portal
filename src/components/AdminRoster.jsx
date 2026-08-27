@@ -8,13 +8,19 @@ export default function AdminRoster() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'members'), (snapshot) => {
-      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Sort by displayName alphabetically
-      data.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
-      setMembers(data);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      collection(db, 'members'),
+      (snapshot) => {
+        const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        data.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+        setMembers(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Firestore Error in AdminRoster:', err);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
