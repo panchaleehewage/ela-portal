@@ -8,6 +8,7 @@ import {
   collection, addDoc, serverTimestamp, onSnapshot,
   query, where, doc, updateDoc, arrayUnion, getDocs
 } from 'firebase/firestore';
+import { QRCodeSVG } from 'qrcode.react';
 import AdminRoster from '../components/AdminRoster';
 
 /* ─── helpers ────────────────────────────────────────────────── */
@@ -32,10 +33,23 @@ function Toast({ msg, onDone }) {
    TAB 1 – Event & Poster Publisher
 ═══════════════════════════════════════════════════════════════ */
 function TabEvents() {
-  const empty = { title: '', type: 'upcoming', date: '', time: '', venue: '', imageUrl: '', body: '', winnerOrHighlights: '' };
+  const empty = { title: '', type: 'upcoming', date: '', time: '', venue: '', imageUrls: '', body: '', winnerOrHighlights: '' };
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [qrModal, setQrModal] = useState(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'events'), where('type', '==', 'upcoming'));
+    const unsub = onSnapshot(q, snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => new Date(a.date) - new Date(b.date));
+      setUpcomingEvents(data);
+    });
+    return () => unsub();
+  }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -43,8 +57,18 @@ function TabEvents() {
     e.preventDefault();
     if (!form.title || !form.date) return;
     setSaving(true);
+    let parsedImages = [];
+    if (form.imageUrls.trim()) {
+      parsedImages = form.imageUrls.split(/[\n,]+/).map(url => url.trim()).filter(Boolean);
+    }
+
     try {
-      await addDoc(collection(db, 'events'), { ...form, createdAt: serverTimestamp() });
+      const { imageUrls, ...restForm } = form; // omit raw string
+      await addDoc(collection(db, 'events'), {
+        ...restForm,
+        imageUrls: parsedImages, // safe array
+        createdAt: serverTimestamp()
+      });
       setForm(empty);
       setToast('Event published to Firestore!');
     } catch (err) {
@@ -55,63 +79,116 @@ function TabEvents() {
   };
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-4xl space-y-8">
       {toast && <Toast msg={toast} onDone={() => setToast('')} />}
-      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <label className={labelCls}>Event Title *</label>
-            <input className={inputCls} value={form.title} onChange={set('title')} placeholder="e.g. The Brontë Circle Night" required />
+
+      <div className="bg-orange-50/40 border border-orange-100 rounded-3xl p-6 sm:p-8">
+        <h3 className="font-serif font-bold text-lg text-ela-dark mb-4">Publish New Event</h3>
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Event Title *</label>
+              <input className={inputCls} value={form.title} onChange={set('title')} placeholder="e.g. The Brontë Circle Night" required />
+            </div>
+
+            <div>
+              <label className={labelCls}>Event Type *</label>
+              <select className={inputCls} value={form.type} onChange={set('type')}>
+                <option value="upcoming">Upcoming Gathering</option>
+                <option value="past">Past Chronicler Recap</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={labelCls}>Date *</label>
+              <input type="date" className={inputCls} value={form.date} onChange={set('date')} required />
+            </div>
+
+            <div>
+              <label className={labelCls}>Time</label>
+              <input type="time" className={inputCls} value={form.time} onChange={set('time')} />
+            </div>
+
+            <div>
+              <label className={labelCls}>Venue</label>
+              <input className={inputCls} value={form.venue} onChange={set('venue')} placeholder="e.g. Heritage Library, Room 4" />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Image URLs (Comma separated)</label>
+              <textarea rows={2} className={inputCls} value={form.imageUrls} onChange={set('imageUrls')} placeholder="https://image1.jpg, https://image2.jpg" />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Description / Recap Body</label>
+              <textarea rows={3} className={inputCls} value={form.body} onChange={set('body')} placeholder="Session description or recap text…" />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Awards / Discussion Highlights</label>
+              <input className={inputCls} value={form.winnerOrHighlights} onChange={set('winnerOrHighlights')} placeholder="e.g. Best Essay: 'Isolation' by Ryan K." />
+            </div>
           </div>
 
-          <div>
-            <label className={labelCls}>Event Type *</label>
-            <select className={inputCls} value={form.type} onChange={set('type')}>
-              <option value="upcoming">Upcoming Gathering</option>
-              <option value="past">Past Chronicler Recap</option>
-            </select>
-          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-3 bg-ela-orange hover:bg-ela-tangerine disabled:opacity-50 text-white font-bold uppercase tracking-wider rounded-xl shadow-sm transition text-xs"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+            {saving ? 'Publishing…' : 'Publish Event'}
+          </button>
+        </form>
+      </div>
 
-          <div>
-            <label className={labelCls}>Date *</label>
-            <input type="date" className={inputCls} value={form.date} onChange={set('date')} required />
-          </div>
-
-          <div>
-            <label className={labelCls}>Time</label>
-            <input type="time" className={inputCls} value={form.time} onChange={set('time')} />
-          </div>
-
-          <div>
-            <label className={labelCls}>Venue</label>
-            <input className={inputCls} value={form.venue} onChange={set('venue')} placeholder="e.g. Heritage Library, Room 4" />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className={labelCls}>Poster / Image URL</label>
-            <input className={inputCls} value={form.imageUrl} onChange={set('imageUrl')} placeholder="https://…" />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className={labelCls}>Description / Recap Body</label>
-            <textarea rows={3} className={inputCls} value={form.body} onChange={set('body')} placeholder="Session description or recap text…" />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className={labelCls}>Awards / Discussion Highlights</label>
-            <input className={inputCls} value={form.winnerOrHighlights} onChange={set('winnerOrHighlights')} placeholder="e.g. Best Essay: 'Isolation' by Ryan K." />
+      {upcomingEvents.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-serif font-bold text-lg text-ela-dark">Upcoming Live Events</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {upcomingEvents.map(ev => (
+              <div key={ev.id} className="p-4 bg-white border border-orange-100 rounded-2xl flex flex-col justify-between items-start shadow-xs">
+                <div className="mb-4">
+                  <h4 className="font-bold text-sm text-ela-dark leading-tight">{ev.title}</h4>
+                  <p className="text-[11px] text-ela-gray mt-1">{ev.date} • {ev.venue}</p>
+                </div>
+                <button
+                  onClick={() => setQrModal(ev.id)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-lg transition"
+                >
+                  Generate QR
+                </button>
+              </div>
+            ))}
           </div>
         </div>
+      )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-3 bg-ela-orange hover:bg-ela-tangerine disabled:opacity-50 text-white font-bold uppercase tracking-wider rounded-xl shadow-sm transition text-xs"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
-          {saving ? 'Publishing…' : 'Publish Event'}
-        </button>
-      </form>
+      {/* QR Modal Component */}
+      {qrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full relative shadow-2xl">
+            <button onClick={() => setQrModal(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-orange-50 text-ela-dark hover:bg-orange-100 transition">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="text-center">
+              <h2 className="font-serif text-2xl font-bold text-ela-dark mb-1">Check In</h2>
+              <p className="text-xs font-bold text-ela-gray uppercase tracking-wider mb-6">Scan with your camera</p>
+              <div className="bg-white p-4 rounded-3xl border-4 border-orange-100 inline-block shadow-lg mx-auto">
+                <QRCodeSVG
+                  value={`${window.location.origin}/checkin?eventId=${qrModal}`}
+                  size={220}
+                  level="H"
+                  fgColor="#1C1E21"
+                  includeMargin={false}
+                />
+              </div>
+              <p className="text-[10px] text-ela-gray font-mono mt-6 truncate bg-orange-50 py-1.5 px-3 rounded-lg border border-orange-100/50">
+                {window.location.origin}/checkin?eventId={qrModal}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuthContext } from '@asgardeo/auth-react';
-import { Calendar, Bell } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Calendar, Bell, Vote, User, Camera, ArrowRight, ChevronRight, CalendarDays } from 'lucide-react';
 import { db } from '../firebase';
 import {
   doc, getDoc, setDoc, collection, query, where,
-  onSnapshot, orderBy
+  onSnapshot, orderBy, limit
 } from 'firebase/firestore';
-import ThemePolls from '../components/ThemePolls';
-import LiteraryPassport from '../components/LiteraryPassport';
 
 function getCleanName(state) {
   if (state.displayName) return state.displayName;
@@ -62,7 +61,7 @@ export default function Dashboard() {
     };
     initMember();
 
-    // Subscribe to upcoming events
+    // Subscribe to upcoming events (limit 1 for the banner)
     const eventsQ = query(
       collection(db, 'events'),
       where('type', '==', 'upcoming')
@@ -126,43 +125,65 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: main content */}
+        {/* Left: Quick Actions & Snippets */}
         <div className="lg:col-span-2 space-y-8">
-          <ThemePolls />
-          <LiteraryPassport />
 
-          {/* Upcoming Events */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 text-ela-orange flex items-center justify-center border border-orange-100">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-serif font-bold text-lg text-ela-dark">Upcoming ELA Sessions</h2>
-                <p className="text-xs text-ela-gray">Live calendar of upcoming club gatherings</p>
-              </div>
-            </div>
+            <h2 className="font-serif font-bold text-lg text-ela-dark mb-1">Quick Actions</h2>
+            <p className="text-xs text-ela-gray mb-6">Navigate through your portal highlights</p>
 
-            <div className="space-y-4">
-              {upcomingEvents.length === 0 ? (
-                <p className="text-xs text-ela-gray italic">No upcoming sessions right now.</p>
-              ) : (
-                upcomingEvents.map((ev) => (
-                  <div key={ev.id} className="p-4 rounded-2xl border border-orange-100/80 hover:bg-orange-50/30 transition flex flex-col sm:flex-row gap-4 items-start">
-                    {ev.imageUrl && (
-                      <div className="w-full sm:w-32 h-32 sm:h-24 shrink-0 rounded-xl overflow-hidden shadow-sm bg-orange-100 border border-orange-200">
-                        <img src={ev.imageUrl} alt={ev.title} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <span className="text-[10px] font-bold text-ela-orange uppercase tracking-wider">{ev.venue}</span>
-                      <h3 className="font-bold text-ela-dark text-base leading-tight mt-0.5">{ev.title}</h3>
-                      <p className="text-xs text-ela-dark font-semibold mt-1">{ev.date}{ev.time ? ` • ${ev.time}` : ''}</p>
-                      {ev.body && <p className="text-xs text-ela-gray mt-1">{ev.body}</p>}
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Link to="/events" className="group p-5 rounded-2xl bg-orange-50/50 hover:bg-orange-50/80 border border-orange-100 transition flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white text-ela-orange flex items-center justify-center border border-orange-100 shadow-sm">
+                    <CalendarDays className="w-5 h-5" />
                   </div>
-                ))
-              )}
+                  <div>
+                    <h3 className="font-bold text-sm text-ela-dark">Gathering Hub</h3>
+                    <p className="text-[11px] text-ela-gray">View sessions & attendance</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-ela-gray group-hover:text-ela-orange transition" />
+              </Link>
+
+              <Link to="/polls" className="group p-5 rounded-2xl bg-orange-50/50 hover:bg-orange-50/80 border border-orange-100 transition flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white text-ela-orange flex items-center justify-center border border-orange-100 shadow-sm">
+                    <Vote className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-ela-dark">Polling Station</h3>
+                    <p className="text-[11px] text-ela-gray">Vote on themes & activities</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-ela-gray group-hover:text-ela-orange transition" />
+              </Link>
+
+              <Link to="/profile" className="group p-5 rounded-2xl bg-orange-50/50 hover:bg-orange-50/80 border border-orange-100 transition flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white text-ela-orange flex items-center justify-center border border-orange-100 shadow-sm">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-ela-dark">Member Passport</h3>
+                    <p className="text-[11px] text-ela-gray">Badges & reading list</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-ela-gray group-hover:text-ela-orange transition" />
+              </Link>
+
+              <Link to="/chronicler" className="group p-5 rounded-2xl bg-orange-50/50 hover:bg-orange-50/80 border border-orange-100 transition flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white text-ela-orange flex items-center justify-center border border-orange-100 shadow-sm">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-ela-dark">The Chronicler</h3>
+                    <p className="text-[11px] text-ela-gray">Past event recaps & photos</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-ela-gray group-hover:text-ela-orange transition" />
+              </Link>
             </div>
           </div>
         </div>
