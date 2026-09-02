@@ -11,7 +11,10 @@ import {
   Camera,
   User,
   Sparkles,
-  Feather
+  Mic,
+  BookMarked,
+  FileText,
+  GraduationCap
 } from 'lucide-react';
 
 import ProtectedRoute from './components/ProtectedRoute';
@@ -132,25 +135,51 @@ function Navigation() {
 function Home() {
   const { state, signIn } = useAuthContext();
 
+  const initiatives = [
+    {
+      icon: BookOpen,
+      title: 'Thematic Book Circles',
+      desc: 'Fortnightly and monthly student book clubs fostering deep discussions across classic and contemporary genres.',
+    },
+    {
+      icon: Mic,
+      title: 'Drop the Mic',
+      desc: "NSBM's favourite open-mic gala celebrating student singers, stand-up comedians, poets, and musicians.",
+    },
+    {
+      icon: FileText,
+      title: 'EVERGREEN Magazine',
+      desc: "ELA's prestigious annual publication capturing student prose, poetry, creative artwork, and alumni spotlights.",
+    },
+    {
+      icon: GraduationCap,
+      title: 'Skill & Academic Workshops',
+      desc: 'Flagship sessions including Academic Referencing and Presentation Skills workshops designed for undergraduate excellence.',
+    },
+  ];
+
   return (
-    <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center max-w-4xl mx-auto">
+    <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center max-w-5xl mx-auto w-full">
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-100/80 text-ela-orange text-xs font-bold uppercase tracking-widest mb-6 border border-orange-200/60 shadow-xs">
         <Sparkles className="w-3.5 h-3.5" />
-        The Literary Community
+        The Creative &amp; Literary Platform of NSBM Green University — Faculty of Business
       </div>
 
       <h2 className="text-4xl sm:text-6xl font-serif font-bold tracking-tight text-ela-dark mb-6 leading-tight">
-        Where Stories Breathe & <br className="hidden sm:inline" />
+        Where Stories Breathe &amp; <br className="hidden sm:inline" />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-ela-orange via-ela-tangerine to-ela-amber">
           Words Come Alive.
         </span>
       </h2>
 
       <p className="text-ela-gray text-base sm:text-lg max-w-2xl mb-10 leading-relaxed">
-        Join the English Literary Association. Participate in fortnightly thematic book circles, cast your vote on upcoming reads, enter creative writing competitions, and connect with fellow readers.
+        Established in 2019, the English Literary Association (ELA) is a university-wide creative home
+        comprising over 250 undergraduates across all faculties. Operating under the Faculty of Business
+        without being restricted to a single specialization, ELA unites passionate readers, writers,
+        poets, and performing artists.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-16">
         {state?.isAuthenticated ? (
           <Link
             to="/dashboard"
@@ -166,32 +195,25 @@ function Home() {
             Sign In with ELA Account
           </button>
         )}
+        <Link
+          to="/chronicler"
+          className="px-8 py-4 bg-white hover:bg-orange-50 text-ela-dark border border-orange-100 font-bold text-sm uppercase tracking-wider rounded-2xl shadow-xs transition-all text-center"
+        >
+          Browse the Archive
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-16 text-left w-full">
-        <div className="p-5 bg-white rounded-2xl border border-orange-100 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 text-ela-orange flex items-center justify-center mb-3">
-            <BookOpen className="w-4 h-4" />
+      {/* Core Initiatives */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left w-full">
+        {initiatives.map(({ icon: Icon, title, desc }) => (
+          <div key={title} className="p-5 bg-white rounded-2xl border border-orange-100 shadow-xs hover:border-ela-orange hover:shadow-md transition-all group">
+            <div className="w-9 h-9 rounded-lg bg-orange-50 text-ela-orange flex items-center justify-center mb-3 group-hover:bg-ela-orange group-hover:text-white transition-colors">
+              <Icon className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-sm text-ela-dark mb-1">{title}</h3>
+            <p className="text-xs text-ela-gray leading-relaxed">{desc}</p>
           </div>
-          <h3 className="font-bold text-sm text-ela-dark mb-1">Fortnightly Circles</h3>
-          <p className="text-xs text-ela-gray">Themed discussions ranging from Gothic classics to contemporary fiction.</p>
-        </div>
-
-        <div className="p-5 bg-white rounded-2xl border border-orange-100 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 text-ela-orange flex items-center justify-center mb-3">
-            <Feather className="w-4 h-4" />
-          </div>
-          <h3 className="font-bold text-sm text-ela-dark mb-1">Writing Galas</h3>
-          <p className="text-xs text-ela-gray">Annual prose and poetry galas with editorial feedback and prizes.</p>
-        </div>
-
-        <div className="p-5 bg-white rounded-2xl border border-orange-100 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 text-ela-orange flex items-center justify-center mb-3">
-            <Calendar className="w-4 h-4" />
-          </div>
-          <h3 className="font-bold text-sm text-ela-dark mb-1">Live Theme Polls</h3>
-          <p className="text-xs text-ela-gray">Direct member voting for the next fortnight's book theme and activities.</p>
-        </div>
+        ))}
       </div>
     </main>
   );

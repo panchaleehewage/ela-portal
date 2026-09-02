@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { Camera, Calendar, Award, ImageOff } from 'lucide-react';
+import { Camera, Calendar, Award, ArrowRight } from 'lucide-react';
+import PageLoader from '../components/PageLoader';
 
 export default function Chronicler() {
   const [pastEvents, setPastEvents] = useState([]);
@@ -30,6 +32,8 @@ export default function Chronicler() {
     return () => unsubscribe();
   }, []);
 
+  if (loading) return <PageLoader />;
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
       <div className="flex items-center gap-3">
@@ -38,22 +42,11 @@ export default function Chronicler() {
         </div>
         <div>
           <span className="text-[10px] font-bold text-ela-orange tracking-widest uppercase">The Archive</span>
-          <h1 className="font-serif font-bold text-3xl text-ela-dark">The Chronicler: Past Events & Gallery</h1>
+          <h1 className="font-serif font-bold text-3xl text-ela-dark">The Chronicler: Past Events &amp; Gallery</h1>
         </div>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2].map((i) => (
-            <div key={i} className="bg-white rounded-3xl p-6 border border-orange-100 shadow-xs animate-pulse space-y-3">
-              <div className="w-full h-40 bg-orange-50 rounded-2xl" />
-              <div className="h-4 bg-orange-50 rounded w-1/3" />
-              <div className="h-5 bg-orange-50 rounded w-3/4" />
-              <div className="h-3 bg-orange-50 rounded w-full" />
-            </div>
-          ))}
-        </div>
-      ) : pastEvents.length === 0 ? (
+      {pastEvents.length === 0 ? (
         <div className="text-center py-16 text-ela-gray space-y-2">
           <Camera className="w-10 h-10 mx-auto text-orange-200" />
           <p className="text-sm font-semibold">No past events logged yet.</p>
@@ -61,57 +54,64 @@ export default function Chronicler() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {pastEvents.map((event) => (
-            <div key={event.id} className="bg-white rounded-3xl overflow-hidden border border-orange-100 shadow-xs flex flex-col">
-              {event.imageUrl ? (
-                <div className="w-full h-48 bg-orange-50 overflow-hidden">
-                  <img
-                    src={event.imageUrl}
-                    alt={event.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div className="w-full h-full hidden items-center justify-center bg-orange-50 text-orange-300">
-                    <ImageOff className="w-8 h-8" />
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full h-32 bg-orange-50 flex items-center justify-center text-orange-200">
-                  <ImageOff className="w-8 h-8" />
-                </div>
-              )}
-
-              <div className="p-6 space-y-4 flex-1 flex flex-col">
-                <div className="flex items-center justify-between text-xs text-ela-gray">
-                  <span className="flex items-center gap-1.5 font-semibold text-ela-orange">
-                    <Calendar className="w-4 h-4" />
-                    {event.date}
-                  </span>
-                  {event.venue && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-100 text-[10px] font-bold text-ela-dark uppercase tracking-wider">
-                      {event.venue}
-                    </span>
+          {pastEvents.map((event) => {
+            // Use imageUrls array first, fall back to legacy imageUrl string
+            const firstImage = (event.imageUrls && event.imageUrls[0]) || event.imageUrl || null;
+            return (
+              <Link
+                key={event.id}
+                to={`/events/${event.id}`}
+                className="bg-white rounded-3xl overflow-hidden border border-orange-100 shadow-xs flex flex-col hover:border-ela-orange hover:shadow-lg hover:shadow-orange-500/10 transition-all group"
+              >
+                {/* Image — object-contain so tall posters are never cropped */}
+                <div className="w-full bg-orange-50/40 flex items-center justify-center overflow-hidden">
+                  {firstImage ? (
+                    <img
+                      src={firstImage}
+                      alt={event.title}
+                      className="w-full max-h-[300px] object-contain group-hover:scale-[1.02] transition duration-500"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-32 flex items-center justify-center text-orange-200">
+                      <Camera className="w-8 h-8" />
+                    </div>
                   )}
                 </div>
 
-                <h3 className="font-serif font-bold text-xl text-ela-dark">{event.title}</h3>
-
-                {event.body && (
-                  <p className="text-xs text-ela-gray leading-relaxed flex-1">{event.body}</p>
-                )}
-
-                {event.winnerOrHighlights && (
-                  <div className="p-3.5 bg-orange-50/60 rounded-2xl border border-orange-100 flex items-center gap-2.5 text-ela-dark mt-auto">
-                    <Award className="w-4 h-4 text-ela-orange shrink-0" />
-                    <span className="text-xs font-medium">{event.winnerOrHighlights}</span>
+                <div className="p-6 space-y-4 flex-1 flex flex-col">
+                  <div className="flex items-center justify-between text-xs text-ela-gray">
+                    <span className="flex items-center gap-1.5 font-semibold text-ela-orange">
+                      <Calendar className="w-4 h-4" />
+                      {event.date}
+                    </span>
+                    {event.venue && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-100 text-[10px] font-bold text-ela-dark uppercase tracking-wider">
+                        {event.venue}
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+
+                  <h3 className="font-serif font-bold text-xl text-ela-dark group-hover:text-ela-orange transition">{event.title}</h3>
+
+                  {event.body && (
+                    <p className="text-xs text-ela-gray leading-relaxed flex-1 line-clamp-3">{event.body}</p>
+                  )}
+
+                  {event.winnerOrHighlights && (
+                    <div className="p-3.5 bg-orange-50/60 rounded-2xl border border-orange-100 flex items-center gap-2.5 text-ela-dark mt-auto">
+                      <Award className="w-4 h-4 text-ela-orange shrink-0" />
+                      <span className="text-xs font-medium">{event.winnerOrHighlights}</span>
+                    </div>
+                  )}
+
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-ela-orange mt-1">
+                    Read Full Recap <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

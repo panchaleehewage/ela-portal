@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, CalendarCheck, Clock, MapPin, ArrowRight } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import PageLoader from '../components/PageLoader';
 
 export default function Events() {
     const { state } = useAuthContext();
@@ -116,10 +117,7 @@ export default function Events() {
                     <div className="space-y-6">
                         <h2 className="font-serif text-xl font-bold text-ela-dark">Upcoming ELA Sessions</h2>
                         {loadingUpcoming ? (
-                            <div className="animate-pulse space-y-4">
-                                <div className="h-24 bg-orange-50 rounded-2xl w-full"></div>
-                                <div className="h-24 bg-orange-50 rounded-2xl w-full"></div>
-                            </div>
+                            <PageLoader />
                         ) : upcomingEvents.length === 0 ? (
                             <div className="p-8 text-center bg-orange-50/30 rounded-2xl border border-orange-100 border-dashed">
                                 <Calendar className="w-8 h-8 text-ela-orange/50 mx-auto mb-3" />
@@ -130,9 +128,13 @@ export default function Events() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {upcomingEvents.map((ev) => (
                                     <div key={ev.id} className="group relative overflow-hidden rounded-2xl border border-orange-100 hover:border-ela-orange hover:shadow-lg hover:shadow-orange-500/10 transition-all bg-white flex flex-col h-full">
-                                        {ev.imageUrl && (
-                                            <div className="h-48 overflow-hidden bg-orange-50">
-                                                <img src={ev.imageUrl} alt={ev.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                                        {(ev.imageUrls?.[0] || ev.imageUrl) && (
+                                            <div className="w-full bg-orange-50/40 flex items-center justify-center overflow-hidden">
+                                                <img
+                                                    src={ev.imageUrls?.[0] || ev.imageUrl}
+                                                    alt={ev.title}
+                                                    className="w-full max-h-[320px] object-contain group-hover:scale-[1.02] transition duration-500"
+                                                />
                                             </div>
                                         )}
                                         <div className="p-6 flex-1 flex flex-col">
@@ -159,10 +161,7 @@ export default function Events() {
                     <div className="space-y-6">
                         <h2 className="font-serif text-xl font-bold text-ela-dark">My Attended Sessions</h2>
                         {loadingAttended ? (
-                            <div className="animate-pulse space-y-4">
-                                <div className="h-16 bg-orange-50 rounded-2xl w-full"></div>
-                                <div className="h-16 bg-orange-50 rounded-2xl w-full"></div>
-                            </div>
+                            <PageLoader />
                         ) : attendedEvents.length === 0 ? (
                             <div className="p-8 text-center bg-orange-50/30 rounded-2xl border border-orange-100 border-dashed">
                                 <CalendarCheck className="w-8 h-8 text-ela-orange/50 mx-auto mb-3" />

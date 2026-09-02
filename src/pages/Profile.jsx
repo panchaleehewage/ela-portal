@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useAuthContext } from '@asgardeo/auth-react';
-import { Award, BookCheck, PlusCircle, Star, Heart, Target, Sparkles, BookHeart, Tags } from 'lucide-react';
+import { Award, BookCheck, PlusCircle, Star, Target, Sparkles, BookHeart, Tags, X, Loader2 } from 'lucide-react';
 import { db } from '../firebase';
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import PageLoader from '../components/PageLoader';
+
+/* ── Star Rating Input ── */
+function StarRatingInput({ value, onChange }) {
+    const [hovered, setHovered] = useState(0);
+    return (
+        <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                    key={n}
+                    type="button"
+                    onMouseEnter={() => setHovered(n)}
+                    onMouseLeave={() => setHovered(0)}
+                    onClick={() => onChange(n)}
+                    className="text-ela-amber transition"
+                >
+                    <Star className={`w-6 h-6 ${n <= (hovered || value) ? 'fill-current' : 'text-gray-200'}`} />
+                </button>
+            ))}
+        </div>
+    );
+}
 
 export default function Profile() {
     const { state } = useAuthContext();
@@ -12,14 +34,21 @@ export default function Profile() {
     const [memberData, setMemberData] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Curated club books catalogue
+    const [clubBooks, setClubBooks] = useState([]);
+
+    // Log ELA Book modal state
     const [showLogModal, setShowLogModal] = useState(false);
-    const [newBook, setNewBook] = useState({ title: '', author: '', genre: '', rating: 5 });
+    const [selectedBookId, setSelectedBookId] = useState('');
+    const [newBook, setNewBook] = useState({ bookId: '', title: '', author: '', genre: '', rating: 5 });
+    const [logSaving, setLogSaving] = useState(false);
 
     const [newTag, setNewTag] = useState('');
     const [newWishlist, setNewWishlist] = useState('');
     const [goalEditing, setGoalEditing] = useState(false);
     const [goalValue, setGoalValue] = useState(12);
 
+    // Stream member data
     useEffect(() => {
         if (!userId) return;
         const userRef = doc(db, 'members', userId);
@@ -37,25 +66,52 @@ export default function Profile() {
                 setLoading(false);
             }
         );
-
         return () => unsub();
     }, [userId]);
+
+    // Stream curated club books
+    useEffect(() => {
+        const unsub = onSnapshot(
+            collection(db, 'club_books'),
+            (snap) => {
+                const books = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+                books.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+                setClubBooks(books);
+            },
+            (err) => console.error('Firestore Error (club_books):', err)
+        );
+        return () => unsub();
+    }, []);
+
+    /* ── Handlers ── */
+    const handleBookSelect = (bookId) => {
+        setSelectedBookId(bookId);
+        const book = clubBooks.find((b) => b.id === bookId);
+        if (book) {
+            setNewBook({ bookId: book.id, title: book.title || '', author: book.author || '', genre: book.genre || '', rating: 5 });
+        } else {
+            setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 });
+        }
+    };
 
     const handleLogBook = async (e) => {
         e.preventDefault();
         if (!newBook.title || !newBook.author) return;
-
+        setLogSaving(true);
         try {
             await updateDoc(doc(db, 'members', userId), {
                 booksRead: arrayUnion({
                     ...newBook,
-                    readDate: new Date().toISOString().split('T')[0]
+                    loggedAt: new Date().toISOString().split('T')[0]
                 })
             });
-            setNewBook({ title: '', author: '', genre: '', rating: 5 });
+            setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 });
+            setSelectedBookId('');
             setShowLogModal(false);
         } catch (err) {
             console.error('Error logging book:', err);
+        } finally {
+            setLogSaving(false);
         }
     };
 
@@ -63,75 +119,46 @@ export default function Profile() {
         e.preventDefault();
         if (!newTag.trim()) return;
         try {
-            await updateDoc(doc(db, 'members', userId), {
-                favoriteTags: arrayUnion(newTag.trim())
-            });
+            await updateDoc(doc(db, 'members', userId), { favoriteTags: arrayUnion(newTag.trim()) });
             setNewTag('');
-        } catch (err) {
-            console.error('Error adding tag:', err);
-        }
+        } catch (err) { console.error('Error adding tag:', err); }
     };
 
     const handleRemoveTag = async (tag) => {
         try {
-            await updateDoc(doc(db, 'members', userId), {
-                favoriteTags: arrayRemove(tag)
-            });
-        } catch (err) {
-            console.error('Error removing tag:', err);
-        }
+            await updateDoc(doc(db, 'members', userId), { favoriteTags: arrayRemove(tag) });
+        } catch (err) { console.error('Error removing tag:', err); }
     };
 
     const handleSaveGoal = async () => {
         try {
-            await updateDoc(doc(db, 'members', userId), {
-                readingGoal: parseInt(goalValue, 10) || 12
-            });
+            await updateDoc(doc(db, 'members', userId), { readingGoal: parseInt(goalValue, 10) || 12 });
             setGoalEditing(false);
-        } catch (err) {
-            console.error('Error saving goal:', err);
-        }
+        } catch (err) { console.error('Error saving goal:', err); }
     };
 
     const handleAddWishlist = async (e) => {
         e.preventDefault();
         if (!newWishlist.trim()) return;
         try {
-            await updateDoc(doc(db, 'members', userId), {
-                wishlist: arrayUnion(newWishlist.trim())
-            });
+            await updateDoc(doc(db, 'members', userId), { wishlist: arrayUnion(newWishlist.trim()) });
             setNewWishlist('');
-        } catch (err) {
-            console.error('Error adding to wishlist:', err);
-        }
+        } catch (err) { console.error('Error adding to wishlist:', err); }
     };
 
     const handleRemoveWishlist = async (item) => {
         try {
-            await updateDoc(doc(db, 'members', userId), {
-                wishlist: arrayRemove(item)
-            });
-        } catch (err) {
-            console.error('Error removing from wishlist:', err);
-        }
+            await updateDoc(doc(db, 'members', userId), { wishlist: arrayRemove(item) });
+        } catch (err) { console.error('Error removing from wishlist:', err); }
     };
 
-    if (loading) {
-        return (
-            <div className="max-w-5xl mx-auto px-6 py-10 animate-pulse space-y-6">
-                <div className="h-48 bg-orange-50 rounded-3xl w-full"></div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="h-64 bg-orange-50 rounded-3xl w-full"></div>
-                    <div className="lg:col-span-2 h-64 bg-orange-50 rounded-3xl w-full"></div>
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <PageLoader />;
 
     if (!memberData) {
         return (
             <div className="max-w-xl mx-auto px-6 py-20 text-center">
                 <div className="bg-white rounded-3xl p-10 border border-orange-100 shadow-xs">
+                    <Sparkles className="w-8 h-8 text-ela-orange mx-auto mb-3" />
                     <p className="text-lg font-serif font-bold text-ela-dark">Initialising your Profile…</p>
                     <p className="text-sm text-ela-gray mt-2">Setting up your Member Passport.</p>
                 </div>
@@ -176,7 +203,6 @@ export default function Profile() {
                                 <button onClick={() => setGoalEditing(true)} className="text-xs font-bold text-ela-orange bg-orange-50 px-2 py-1 rounded">Edit</button>
                             )}
                         </div>
-
                         {goalEditing ? (
                             <input type="number" min="1" value={goalValue} autoFocus onChange={(e) => setGoalValue(e.target.value)} className="w-full text-center text-xl font-bold p-2 border border-orange-200 rounded-xl mb-4 focus:outline-ela-orange" />
                         ) : (
@@ -185,14 +211,13 @@ export default function Profile() {
                                 <span className="text-lg font-bold text-ela-gray mb-1">/ {goal}</span>
                             </div>
                         )}
-
                         <div className="h-3 bg-orange-50 rounded-full overflow-hidden w-full border border-orange-100/50">
                             <div className="h-full bg-gradient-to-r from-ela-orange to-ela-amber transition-all duration-1000 ease-out" style={{ width: `${progressPct}%` }} />
                         </div>
                         {progressPct >= 100 && <p className="text-[11px] font-bold text-emerald-600 mt-2">Goal Achieved! 🎉</p>}
                     </div>
 
-                    {/* Favorite Tropes & Genres */}
+                    {/* Literary Identity */}
                     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs">
                         <h3 className="font-serif font-bold text-lg text-ela-dark mb-4 flex items-center gap-3">
                             <Tags className="w-5 h-5 text-ela-orange" /> Literary Identity
@@ -215,7 +240,7 @@ export default function Profile() {
                         </form>
                     </div>
 
-                    {/* Literary Wishlist */}
+                    {/* Reading Wishlist */}
                     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs">
                         <h3 className="font-serif font-bold text-lg text-ela-dark mb-4 flex items-center gap-3">
                             <BookHeart className="w-5 h-5 text-ela-orange" /> Reading Wishlist
@@ -241,46 +266,98 @@ export default function Profile() {
 
                 {/* Right Main Content */}
                 <div className="lg:col-span-8 space-y-8">
-                    {/* Passport / Books Read */}
+                    {/* Books Read with ELA */}
                     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-orange-100 shadow-xs">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-serif font-bold text-xl text-ela-dark flex items-center gap-3">
                                 <BookCheck className="w-6 h-6 text-ela-orange" /> Books Read with ELA
                             </h3>
                             <button
-                                onClick={() => setShowLogModal(!showLogModal)}
+                                onClick={() => setShowLogModal(true)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-ela-orange text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm hover:bg-ela-tangerine transition"
                             >
-                                <PlusCircle className="w-4 h-4" /> Log Book
+                                <PlusCircle className="w-4 h-4" /> Log an ELA Book
                             </button>
                         </div>
 
+                        {/* Log ELA Book Modal */}
                         {showLogModal && (
-                            <form onSubmit={handleLogBook} className="p-5 mb-6 bg-orange-50/50 rounded-2xl border border-orange-100 space-y-4">
-                                <h4 className="text-sm font-bold text-ela-dark">Log a Finished Read</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <input type="text" placeholder="Title" required value={newBook.title} onChange={e => setNewBook({ ...newBook, title: e.target.value })} className="p-3 text-sm rounded-xl border border-orange-100 focus:outline-ela-orange" />
-                                    <input type="text" placeholder="Author" required value={newBook.author} onChange={e => setNewBook({ ...newBook, author: e.target.value })} className="p-3 text-sm rounded-xl border border-orange-100 focus:outline-ela-orange" />
-                                    <input type="text" placeholder="Genre" value={newBook.genre} onChange={e => setNewBook({ ...newBook, genre: e.target.value })} className="p-3 text-sm rounded-xl border border-orange-100 focus:outline-ela-orange" />
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-ela-gray uppercase tracking-wider">Personal Rating</label>
-                                        <select value={newBook.rating} onChange={e => setNewBook({ ...newBook, rating: Number(e.target.value) })} className="w-full p-2.5 text-sm rounded-xl border border-orange-100 focus:outline-ela-orange">
-                                            {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{r} Stars</option>)}
-                                        </select>
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                                <div className="bg-white rounded-[2rem] p-8 max-w-md w-full relative shadow-2xl space-y-5">
+                                    <button
+                                        onClick={() => { setShowLogModal(false); setSelectedBookId(''); setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 }); }}
+                                        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-orange-50 text-ela-dark hover:bg-orange-100 transition"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+
+                                    <div>
+                                        <h2 className="font-serif text-xl font-bold text-ela-dark mb-1">Log an ELA Book</h2>
+                                        <p className="text-xs text-ela-gray">Select from ELA's official reading catalogue</p>
                                     </div>
+
+                                    <form onSubmit={handleLogBook} className="space-y-4">
+                                        {/* Curated dropdown */}
+                                        <div>
+                                            <label className="block text-xs font-bold text-ela-dark mb-1">Select ELA Book *</label>
+                                            <select
+                                                className="w-full p-3 text-sm rounded-xl border border-orange-100 focus:outline-none focus:border-ela-orange bg-white"
+                                                value={selectedBookId}
+                                                onChange={(e) => handleBookSelect(e.target.value)}
+                                                required
+                                            >
+                                                <option value="">— Choose a book from the catalogue —</option>
+                                                {clubBooks.map((b) => (
+                                                    <option key={b.id} value={b.id}>
+                                                        {b.title} {b.author ? `— ${b.author}` : ''} {b.yearDiscussed ? `(${b.yearDiscussed})` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Auto-filled read-only fields */}
+                                        {newBook.title && (
+                                            <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100 space-y-1 text-xs">
+                                                <p><span className="font-bold text-ela-dark">Title:</span> {newBook.title}</p>
+                                                <p><span className="font-bold text-ela-dark">Author:</span> {newBook.author}</p>
+                                                {newBook.genre && <p><span className="font-bold text-ela-dark">Genre:</span> {newBook.genre}</p>}
+                                            </div>
+                                        )}
+
+                                        {/* Star rating */}
+                                        <div>
+                                            <label className="block text-xs font-bold text-ela-dark mb-2">Your Rating</label>
+                                            <StarRatingInput value={newBook.rating} onChange={(r) => setNewBook((b) => ({ ...b, rating: r }))} />
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowLogModal(false); setSelectedBookId(''); setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 }); }}
+                                                className="px-4 py-2 text-xs text-ela-gray font-bold hover:bg-orange-100 rounded-xl transition"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={!selectedBookId || logSaving}
+                                                className="flex items-center gap-2 px-5 py-2 bg-ela-dark text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm transition hover:bg-black disabled:opacity-50"
+                                            >
+                                                {logSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                Submit Log
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                                <div className="flex justify-end gap-2">
-                                    <button type="button" onClick={() => setShowLogModal(false)} className="px-4 py-2 text-xs text-ela-gray font-bold hover:bg-orange-100 rounded-xl transition">Cancel</button>
-                                    <button type="submit" className="px-4 py-2 bg-ela-dark text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm transition hover:bg-black">Submit Log</button>
-                                </div>
-                            </form>
+                            </div>
                         )}
 
+                        {/* Books list */}
                         <div className="space-y-3">
                             {booksRead.length === 0 ? (
                                 <div className="py-10 text-center border-2 border-dashed border-orange-100 rounded-2xl bg-orange-50/40">
                                     <p className="text-sm font-semibold text-ela-dark">No books recorded yet.</p>
-                                    <p className="text-xs text-ela-gray mt-1">Use the Log Book button to add your first read.</p>
+                                    <p className="text-xs text-ela-gray mt-1">Use the "Log an ELA Book" button to add your first read.</p>
                                 </div>
                             ) : (
                                 [...booksRead].reverse().map((book, i) => (
@@ -290,6 +367,7 @@ export default function Profile() {
                                             <p className="text-sm text-ela-gray font-medium">{book.author}</p>
                                         </div>
                                         <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
+                                            {/* Star display */}
                                             <div className="flex items-center gap-0.5 text-ela-amber">
                                                 {Array.from({ length: 5 }).map((_, idx) => (
                                                     <Star key={idx} className={`w-3.5 h-3.5 ${idx < (book.rating || 5) ? 'fill-current' : 'text-gray-200'}`} />
@@ -301,7 +379,7 @@ export default function Profile() {
                                                         {book.genre}
                                                     </span>
                                                 )}
-                                                <span className="text-[10px] text-ela-gray font-mono">{book.readDate}</span>
+                                                <span className="text-[10px] text-ela-gray font-mono">{book.loggedAt || book.readDate}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -336,7 +414,6 @@ export default function Profile() {
                             )}
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>

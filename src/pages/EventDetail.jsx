@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Calendar, Clock, MapPin, ArrowLeft, Image as ImageIcon, Sparkles, Award } from 'lucide-react';
+import PageLoader from '../components/PageLoader';
 
 export default function EventDetail() {
     const { id } = useParams();
@@ -25,15 +26,7 @@ export default function EventDetail() {
         fetchEvent();
     }, [id]);
 
-    if (loading) {
-        return (
-            <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col items-center justify-center animate-pulse">
-                <div className="w-16 h-16 bg-orange-100 rounded-2xl mb-6"></div>
-                <div className="h-8 bg-orange-50 rounded w-1/2 mb-4"></div>
-                <div className="h-4 bg-orange-50 rounded w-1/3"></div>
-            </div>
-        );
-    }
+    if (loading) return <PageLoader />;
 
     if (!event) {
         return (
@@ -60,12 +53,15 @@ export default function EventDetail() {
 
     return (
         <div className="max-w-4xl mx-auto px-6 py-8 sm:py-12 space-y-8">
-            <Link to={event.type === 'past' ? '/chronicler' : '/events'} className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ela-gray hover:text-ela-orange transition">
+            <Link
+                to={event.type === 'past' ? '/chronicler' : '/events'}
+                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ela-gray hover:text-ela-orange transition"
+            >
                 <ArrowLeft className="w-4 h-4" /> Back to {event.type === 'past' ? 'Archive' : 'Events'}
             </Link>
 
             <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-sm">
-                {/* Header Section */}
+                {/* Header */}
                 <div className="p-8 sm:p-12 border-b border-orange-100 bg-gradient-to-br from-orange-50/50 to-white">
                     <div className="flex gap-2 items-center mb-6">
                         <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg border ${event.type === 'past' ? 'bg-ela-dark text-white border-ela-dark' : 'bg-ela-orange text-white border-ela-orange'}`}>
@@ -94,17 +90,25 @@ export default function EventDetail() {
                     </div>
                 </div>
 
-                {/* Content Section */}
+                {/* Content */}
                 <div className="p-8 sm:p-12 space-y-10">
                     {images.length > 0 && (
                         <div className="space-y-4">
                             <h3 className="text-xs font-bold text-ela-dark uppercase tracking-wider flex items-center gap-2">
                                 <ImageIcon className="w-4 h-4 text-ela-orange" /> Gallery
                             </h3>
+                            {/* Responsive masonry-style grid — full images, no cropping */}
                             <div className={`grid gap-4 ${images.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
                                 {images.map((img, i) => (
-                                    <div key={i} className="rounded-2xl overflow-hidden border border-orange-100 bg-orange-50 aspect-video shadow-sm">
-                                        <img src={img.trim()} alt={`${event.title} gallery ${i + 1}`} className="w-full h-full object-cover" />
+                                    <div
+                                        key={i}
+                                        className="rounded-2xl overflow-hidden border border-orange-100 bg-orange-50/40 flex items-center justify-center"
+                                    >
+                                        <img
+                                            src={img.trim()}
+                                            alt={`${event.title} gallery ${i + 1}`}
+                                            className="w-full max-h-[480px] object-contain rounded-2xl"
+                                        />
                                     </div>
                                 ))}
                             </div>
@@ -123,7 +127,7 @@ export default function EventDetail() {
                     {event.winnerOrHighlights && (
                         <div className="p-6 bg-orange-50/50 rounded-2xl border border-orange-100 space-y-3">
                             <h3 className="text-xs font-bold text-ela-dark uppercase tracking-wider flex items-center gap-2">
-                                <Award className="w-4 h-4 text-ela-orange" /> Highlights & Awards
+                                <Award className="w-4 h-4 text-ela-orange" /> Highlights &amp; Awards
                             </h3>
                             <p className="text-sm text-ela-dark/80 font-medium italic">
                                 "{event.winnerOrHighlights}"
