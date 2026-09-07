@@ -16,19 +16,33 @@ import AdminRoster from '../components/AdminRoster';
 const inputCls = 'w-full p-3 text-xs rounded-xl border border-orange-100 focus:outline-none focus:border-ela-orange bg-white';
 const labelCls = 'block text-xs font-bold text-ela-dark mb-1';
 
-/** Convert FileList to Base64 data-URL strings */
-const readFilesAsBase64 = (files) =>
-  Promise.all(
-    Array.from(files).map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        })
-    )
-  );
+/** Compress an image File to a JPEG data-URL, max 1200×1200 at 70% quality.
+ *  Keeps Firestore document size safely below the 1 MiB limit. */
+function compressImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+        } else {
+          if (height > maxHeight) { width = Math.round((width * maxHeight) / height); height = maxHeight; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+}
 
 function Toast({ msg, onDone }) {
   useEffect(() => {
@@ -91,12 +105,11 @@ function TabEvents() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     try {
-      const base64s = await readFilesAsBase64(files);
-      setUploadedImages((prev) => [...prev, ...base64s]);
+      const compressed = await Promise.all(Array.from(files).map((f) => compressImage(f)));
+      setUploadedImages((prev) => [...prev, ...compressed]);
     } catch (err) {
-      console.error('Image read error:', err);
+      console.error('Image compression error:', err);
     }
-    // Reset the input so the same file can be re-selected if needed
     e.target.value = '';
   };
 
@@ -591,10 +604,10 @@ function TabBooks() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const [base64] = await readFilesAsBase64([file]);
-      setUploadedCover(base64);
+      const compressed = await compressImage(file);
+      setUploadedCover(compressed);
     } catch (err) {
-      console.error('Cover upload error:', err);
+      console.error('Cover compression error:', err);
     }
     e.target.value = '';
   };

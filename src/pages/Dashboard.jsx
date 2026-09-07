@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuthContext } from '@asgardeo/auth-react';
 import { Link } from 'react-router-dom';
-import { Calendar, Bell, Vote, User, Camera, ArrowRight, ChevronRight, CalendarDays } from 'lucide-react';
+import { Calendar, Bell, Vote, User, Camera, ChevronRight, CalendarDays } from 'lucide-react';
 import { db } from '../firebase';
 import {
   doc, getDoc, setDoc, collection, query, where,
   onSnapshot, orderBy, limit
 } from 'firebase/firestore';
+import PageLoader from '../components/PageLoader';
 
 function getCleanName(state) {
   if (state.displayName) return state.displayName;
@@ -61,7 +62,7 @@ export default function Dashboard() {
     };
     initMember();
 
-    // Subscribe to upcoming events (limit 1 for the banner)
+    // Subscribe to upcoming events
     const eventsQ = query(
       collection(db, 'events'),
       where('type', '==', 'upcoming')
@@ -76,15 +77,17 @@ export default function Dashboard() {
       (err) => console.error('Firestore Error in Dashboard (events):', err)
     );
 
-    // Subscribe to announcements
-    const annQ = query(
-      collection(db, 'announcements'),
-      orderBy('createdAt', 'desc')
-    );
+    // Subscribe to announcements — sort client-side to avoid composite index requirement
     const unsubAnn = onSnapshot(
-      annQ,
+      collection(db, 'announcements'),
       (snapshot) => {
-        setAnnouncements(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        data.sort((a, b) => {
+          // Firestore Timestamps have .toMillis(); fall back to string comparison
+          const getMs = (v) => v?.toMillis ? v.toMillis() : new Date(v || 0).getTime();
+          return getMs(b.createdAt) - getMs(a.createdAt);
+        });
+        setAnnouncements(data);
       },
       (err) => console.error('Firestore Error in Dashboard (announcements):', err)
     );
@@ -97,6 +100,8 @@ export default function Dashboard() {
 
   const nearestEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
   const cleanName = getCleanName(state);
+
+  if (memberLoading) return <PageLoader />;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-10">
@@ -111,8 +116,8 @@ export default function Dashboard() {
           </h1>
           <p className="text-white/90 text-sm">
             {nearestEvent
-              ? <>Next Fortnightly Circle: <span className="font-semibold underline">{nearestEvent.title} — {nearestEvent.date} at {nearestEvent.time} ({nearestEvent.venue})</span></>
-              : 'No upcoming circles scheduled yet'
+              ? <><span className="font-semibold">Next Circle:</span> {nearestEvent.title} — {nearestEvent.date}{nearestEvent.time ? ` at ${nearestEvent.time}` : ''}{nearestEvent.venue ? ` · ${nearestEvent.venue}` : ''}</>
+              : 'No upcoming circles scheduled yet. Check back soon!'
             }
           </p>
         </div>
@@ -171,19 +176,6 @@ export default function Dashboard() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-ela-gray group-hover:text-ela-orange transition" />
               </Link>
-
-              <Link to="/chronicler" className="group p-5 rounded-2xl bg-orange-50/50 hover:bg-orange-50/80 border border-orange-100 transition flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white text-ela-orange flex items-center justify-center border border-orange-100 shadow-sm">
-                    <Camera className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-ela-dark">The Chronicler</h3>
-                    <p className="text-[11px] text-ela-gray">Past event recaps & photos</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-ela-gray group-hover:text-ela-orange transition" />
-              </Link>
             </div>
           </div>
         </div>
@@ -224,7 +216,10 @@ export default function Dashboard() {
 
             <div className="space-y-3">
               {announcements.length === 0 ? (
-                <p className="text-xs text-ela-gray italic">No announcements yet.</p>
+                <div className="py-6 text-center border-2 border-dashed border-orange-100 rounded-2xl">
+                  <p className="text-xs text-ela-gray font-medium">No announcements posted yet.</p>
+                  <p className="text-[11px] text-ela-gray/70 mt-1">Check back soon!</p>
+                </div>
               ) : (
                 announcements.slice(0, 5).map((ann) => (
                   <div key={ann.id} className="p-3 rounded-2xl bg-orange-50/40 border border-orange-100 space-y-1">
