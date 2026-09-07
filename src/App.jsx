@@ -22,7 +22,6 @@ import Dashboard from './pages/Dashboard';
 import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
 import Polls from './pages/Polls';
-import Chronicler from './pages/Chronicler';
 import Profile from './pages/Profile';
 import CheckIn from './pages/CheckIn';
 import AdminPanel from './pages/AdminPanel';
@@ -59,11 +58,11 @@ function Navigation() {
 
       <nav className="flex items-center gap-3 sm:gap-6 text-xs font-bold uppercase tracking-wider">
         <Link
-          to="/chronicler"
+          to="/events"
           className="flex items-center gap-1.5 text-ela-dark hover:text-ela-orange transition"
         >
           <Camera className="w-4 h-4" />
-          <span className="hidden md:inline">The Chronicler</span>
+          <span className="hidden md:inline">Events &amp; Gallery</span>
         </Link>
 
         {state?.isAuthenticated && (
@@ -162,7 +161,7 @@ function Home() {
     <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center max-w-5xl mx-auto w-full">
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-100/80 text-ela-orange text-xs font-bold uppercase tracking-widest mb-6 border border-orange-200/60 shadow-xs">
         <Sparkles className="w-3.5 h-3.5" />
-        The Creative &amp; Literary Platform of NSBM Green University — Faculty of Business
+        The Creative &amp; Literary Platform of NSBM Green University
       </div>
 
       <h2 className="text-4xl sm:text-6xl font-serif font-bold tracking-tight text-ela-dark mb-6 leading-tight">
@@ -226,30 +225,10 @@ export default function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/chronicler" element={<Chronicler />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/events"
-            element={
-              <ProtectedRoute>
-                <Events />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/events" element={<Events />} />
           <Route
             path="/events/:id"
-            element={
-              <ProtectedRoute>
-                <EventDetail />
-              </ProtectedRoute>
-            }
+            element={<EventDetail />}
           />
           <Route
             path="/polls"

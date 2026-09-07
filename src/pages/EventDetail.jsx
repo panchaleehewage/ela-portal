@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Calendar, Clock, MapPin, ArrowLeft, Image as ImageIcon, Sparkles, Award } from 'lucide-react';
@@ -7,6 +7,7 @@ import PageLoader from '../components/PageLoader';
 
 export default function EventDetail() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [event, setEvent] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -32,7 +33,7 @@ export default function EventDetail() {
         return (
             <div className="max-w-4xl mx-auto px-6 py-12 text-center">
                 <Link to="/events" className="inline-flex items-center gap-2 text-xs font-bold text-ela-gray hover:text-ela-orange mb-6 transition">
-                    <ArrowLeft className="w-4 h-4" /> Back to Hub
+                    <ArrowLeft className="w-4 h-4" /> Back to Events
                 </Link>
                 <div className="p-10 bg-white rounded-3xl border border-orange-100 shadow-sm text-center">
                     <Sparkles className="w-10 h-10 text-ela-orange/50 mx-auto mb-4" />
@@ -53,12 +54,12 @@ export default function EventDetail() {
 
     return (
         <div className="max-w-4xl mx-auto px-6 py-8 sm:py-12 space-y-8">
-            <Link
-                to={event.type === 'past' ? '/chronicler' : '/events'}
+            <button
+                onClick={() => navigate(-1)}
                 className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ela-gray hover:text-ela-orange transition"
             >
-                <ArrowLeft className="w-4 h-4" /> Back to {event.type === 'past' ? 'Archive' : 'Events'}
-            </Link>
+                <ArrowLeft className="w-4 h-4" /> Back
+            </button>
 
             <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-sm">
                 {/* Header */}

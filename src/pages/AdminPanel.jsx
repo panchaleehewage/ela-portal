@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Shield, PlusCircle, Megaphone, BarChart2, Users2,
   CheckCircle, Loader2, X, Plus, Lock, BookOpen,
-  Trash2, Pencil, AlertTriangle
+  Trash2, Pencil, AlertTriangle, UploadCloud
 } from 'lucide-react';
 import { db } from '../firebase';
 import {
@@ -15,6 +15,20 @@ import AdminRoster from '../components/AdminRoster';
 /* ─── helpers ─────────────────────────────────────────────────── */
 const inputCls = 'w-full p-3 text-xs rounded-xl border border-orange-100 focus:outline-none focus:border-ela-orange bg-white';
 const labelCls = 'block text-xs font-bold text-ela-dark mb-1';
+
+/** Convert FileList to Base64 data-URL strings */
+const readFilesAsBase64 = (files) =>
+  Promise.all(
+    Array.from(files).map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        })
+    )
+  );
 
 function Toast({ msg, onDone }) {
   useEffect(() => {
@@ -54,6 +68,7 @@ function ConfirmDeleteBtn({ label = 'Delete', onConfirm, busy }) {
 function TabEvents() {
   const empty = { title: '', type: 'upcoming', date: '', time: '', venue: '', imageUrls: '', body: '', winnerOrHighlights: '' };
   const [form, setForm] = useState(empty);
+  const [uploadedImages, setUploadedImages] = useState([]); // base64 from device
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
@@ -72,8 +87,25 @@ function TabEvents() {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const handleImageUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      const base64s = await readFilesAsBase64(files);
+      setUploadedImages((prev) => [...prev, ...base64s]);
+    } catch (err) {
+      console.error('Image read error:', err);
+    }
+    // Reset the input so the same file can be re-selected if needed
+    e.target.value = '';
+  };
+
+  const removeUploadedImage = (idx) =>
+    setUploadedImages((prev) => prev.filter((_, i) => i !== idx));
+
   const startEdit = (ev) => {
     setEditId(ev.id);
+    setUploadedImages([]);
     setForm({
       title: ev.title || '',
       type: ev.type || 'upcoming',
@@ -87,25 +119,28 @@ function TabEvents() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const cancelEdit = () => { setEditId(null); setForm(empty); };
+  const cancelEdit = () => { setEditId(null); setForm(empty); setUploadedImages([]); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.date) return;
     setSaving(true);
-    const parsedImages = form.imageUrls.trim()
+    // Combine typed URLs and uploaded base64 images
+    const urlImages = form.imageUrls.trim()
       ? form.imageUrls.split(/[\n,]+/).map((u) => u.trim()).filter(Boolean)
       : [];
+    const allImages = [...urlImages, ...uploadedImages];
     try {
       const { imageUrls, ...rest } = form;
       if (editId) {
-        await updateDoc(doc(db, 'events', editId), { ...rest, imageUrls: parsedImages });
+        await updateDoc(doc(db, 'events', editId), { ...rest, imageUrls: allImages });
         setToast('Event updated successfully!');
       } else {
-        await addDoc(collection(db, 'events'), { ...rest, imageUrls: parsedImages, createdAt: serverTimestamp() });
+        await addDoc(collection(db, 'events'), { ...rest, imageUrls: allImages, createdAt: serverTimestamp() });
         setToast('Event published to Firestore!');
       }
       setForm(empty);
+      setUploadedImages([]);
       setEditId(null);
     } catch (err) {
       console.error('Firestore Error (events):', err);
@@ -125,8 +160,6 @@ function TabEvents() {
       setDeleting('');
     }
   };
-
-  const upcoming = allEvents.filter((e) => e.type === 'upcoming');
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -164,8 +197,32 @@ function TabEvents() {
               <input className={inputCls} value={form.venue} onChange={set('venue')} placeholder="e.g. Heritage Library, Room 4" />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelCls}>Image URLs (comma-separated)</label>
-              <textarea rows={2} className={inputCls} value={form.imageUrls} onChange={set('imageUrls')} placeholder="https://image1.jpg, https://image2.jpg" />
+              <label className={labelCls}>Event Images</label>
+              {/* URL input */}
+              <textarea rows={2} className={inputCls} value={form.imageUrls} onChange={set('imageUrls')} placeholder="Paste image URLs (comma-separated)…" />
+              {/* File upload */}
+              <label className="mt-2 flex items-center gap-2 cursor-pointer w-fit px-3 py-2 bg-orange-50 border border-orange-200 border-dashed rounded-xl hover:bg-orange-100 transition">
+                <UploadCloud className="w-4 h-4 text-ela-orange" />
+                <span className="text-xs font-bold text-ela-orange">Upload from Device</span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+              </label>
+              {/* Preview uploaded images */}
+              {uploadedImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {uploadedImages.map((src, idx) => (
+                    <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-orange-200">
+                      <img src={src} alt={`upload-${idx}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeUploadedImage(idx)}
+                        className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 text-white rounded-full text-[9px] flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>Description / Recap Body</label>
@@ -521,6 +578,7 @@ function TabPolls() {
 function TabBooks() {
   const empty = { title: '', author: '', genre: '', yearDiscussed: '', coverUrl: '' };
   const [form, setForm] = useState(empty);
+  const [uploadedCover, setUploadedCover] = useState(''); // base64 from device
   const [editId, setEditId] = useState(null);
   const [books, setBooks] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -528,6 +586,18 @@ function TabBooks() {
   const [toast, setToast] = useState('');
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const [base64] = await readFilesAsBase64([file]);
+      setUploadedCover(base64);
+    } catch (err) {
+      console.error('Cover upload error:', err);
+    }
+    e.target.value = '';
+  };
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'club_books'), (snap) => {
@@ -540,24 +610,28 @@ function TabBooks() {
 
   const startEdit = (book) => {
     setEditId(book.id);
+    setUploadedCover('');
     setForm({ title: book.title || '', author: book.author || '', genre: book.genre || '', yearDiscussed: book.yearDiscussed || '', coverUrl: book.coverUrl || '' });
   };
 
-  const cancelEdit = () => { setEditId(null); setForm(empty); };
+  const cancelEdit = () => { setEditId(null); setForm(empty); setUploadedCover(''); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title) return;
     setSaving(true);
+    // Prefer uploaded base64 over typed URL
+    const finalCoverUrl = uploadedCover || form.coverUrl;
     try {
       if (editId) {
-        await updateDoc(doc(db, 'club_books', editId), form);
+        await updateDoc(doc(db, 'club_books', editId), { ...form, coverUrl: finalCoverUrl });
         setToast('Book updated!');
       } else {
-        await addDoc(collection(db, 'club_books'), { ...form, addedAt: serverTimestamp() });
+        await addDoc(collection(db, 'club_books'), { ...form, coverUrl: finalCoverUrl, addedAt: serverTimestamp() });
         setToast('Book added to ELA catalogue!');
       }
       setForm(empty);
+      setUploadedCover('');
       setEditId(null);
     } catch (err) {
       console.error('Firestore Error (club_books save):', err);
@@ -606,8 +680,27 @@ function TabBooks() {
             <input className={inputCls} value={form.yearDiscussed} onChange={set('yearDiscussed')} placeholder="e.g. 2024" />
           </div>
           <div>
-            <label className={labelCls}>Cover Image URL</label>
-            <input className={inputCls} value={form.coverUrl} onChange={set('coverUrl')} placeholder="https://..." />
+            <label className={labelCls}>Cover Image</label>
+            <input className={inputCls} value={form.coverUrl} onChange={set('coverUrl')} placeholder="Paste image URL or upload below" />
+            <label className="mt-2 flex items-center gap-2 cursor-pointer w-fit px-3 py-2 bg-orange-50 border border-orange-200 border-dashed rounded-xl hover:bg-orange-100 transition">
+              <UploadCloud className="w-4 h-4 text-ela-orange" />
+              <span className="text-xs font-bold text-ela-orange">Upload Cover from Device</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+            </label>
+            {/* Cover preview */}
+            {(uploadedCover || form.coverUrl) && (
+              <div className="mt-2 flex items-center gap-3">
+                <img
+                  src={uploadedCover || form.coverUrl}
+                  alt="cover preview"
+                  className="w-12 h-16 object-contain rounded-lg border border-orange-200 bg-orange-50"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                {uploadedCover && (
+                  <button type="button" onClick={() => setUploadedCover('')} className="text-[11px] font-bold text-red-500 hover:underline">Remove upload</button>
+                )}
+              </div>
+            )}
           </div>
           <div className="sm:col-span-2">
             <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-3 bg-ela-orange hover:bg-ela-tangerine disabled:opacity-50 text-white font-bold uppercase tracking-wider rounded-xl shadow-sm transition text-xs">
@@ -849,8 +942,8 @@ export default function AdminPanel() {
             key={id}
             onClick={() => setActiveTab(id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-xl border border-b-0 transition ${activeTab === id
-                ? 'bg-white border-orange-100 text-ela-orange shadow-xs'
-                : 'bg-orange-50/40 border-transparent text-ela-gray hover:text-ela-dark hover:bg-orange-50'
+              ? 'bg-white border-orange-100 text-ela-orange shadow-xs'
+              : 'bg-orange-50/40 border-transparent text-ela-gray hover:text-ela-dark hover:bg-orange-50'
               }`}
           >
             <Icon className="w-3.5 h-3.5" />

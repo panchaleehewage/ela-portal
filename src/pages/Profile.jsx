@@ -88,9 +88,9 @@ export default function Profile() {
         setSelectedBookId(bookId);
         const book = clubBooks.find((b) => b.id === bookId);
         if (book) {
-            setNewBook({ bookId: book.id, title: book.title || '', author: book.author || '', genre: book.genre || '', rating: 5 });
+            setNewBook({ bookId: book.id, title: book.title || '', author: book.author || '', genre: book.genre || '', coverUrl: book.coverUrl || '', rating: 5 });
         } else {
-            setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 });
+            setNewBook({ bookId: '', title: '', author: '', genre: '', coverUrl: '', rating: 5 });
         }
     };
 
@@ -105,7 +105,7 @@ export default function Profile() {
                     loggedAt: new Date().toISOString().split('T')[0]
                 })
             });
-            setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 });
+            setNewBook({ bookId: '', title: '', author: '', genre: '', coverUrl: '', rating: 5 });
             setSelectedBookId('');
             setShowLogModal(false);
         } catch (err) {
@@ -285,7 +285,7 @@ export default function Profile() {
                             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                                 <div className="bg-white rounded-[2rem] p-8 max-w-md w-full relative shadow-2xl space-y-5">
                                     <button
-                                        onClick={() => { setShowLogModal(false); setSelectedBookId(''); setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 }); }}
+                                        onClick={() => { setShowLogModal(false); setSelectedBookId(''); setNewBook({ bookId: '', title: '', author: '', genre: '', coverUrl: '', rating: 5 }); }}
                                         className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-orange-50 text-ela-dark hover:bg-orange-100 transition"
                                     >
                                         <X className="w-4 h-4" />
@@ -333,7 +333,7 @@ export default function Profile() {
                                         <div className="flex justify-end gap-2 pt-2">
                                             <button
                                                 type="button"
-                                                onClick={() => { setShowLogModal(false); setSelectedBookId(''); setNewBook({ bookId: '', title: '', author: '', genre: '', rating: 5 }); }}
+                                                onClick={() => { setShowLogModal(false); setSelectedBookId(''); setNewBook({ bookId: '', title: '', author: '', genre: '', coverUrl: '', rating: 5 }); }}
                                                 className="px-4 py-2 text-xs text-ela-gray font-bold hover:bg-orange-100 rounded-xl transition"
                                             >
                                                 Cancel
@@ -361,8 +361,19 @@ export default function Profile() {
                                 </div>
                             ) : (
                                 [...booksRead].reverse().map((book, i) => (
-                                    <div key={i} className="p-4 rounded-2xl border border-orange-100 bg-white hover:border-ela-orange transition group flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 shadow-xs">
-                                        <div>
+                                    <div key={i} className="p-4 rounded-2xl border border-orange-100 bg-white hover:border-ela-orange transition group flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 shadow-xs">
+                                        {/* Cover thumbnail */}
+                                        {book.coverUrl ? (
+                                            <img
+                                                src={book.coverUrl}
+                                                alt={book.title}
+                                                className="w-12 h-16 object-cover rounded-lg shadow-xs border border-orange-100 shrink-0"
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-16 bg-orange-100 rounded-lg flex items-center justify-center text-xl shrink-0">📖</div>
+                                        )}
+                                        <div className="flex-1">
                                             <h4 className="font-bold text-ela-dark text-base">{book.title}</h4>
                                             <p className="text-sm text-ela-gray font-medium">{book.author}</p>
                                         </div>
