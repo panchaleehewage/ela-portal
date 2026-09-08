@@ -4,7 +4,7 @@ An enterprise-grade club member and executive management portal developed for th
 
 ---
 
-## 🌟 Overview & Problem Solved
+## Overview & Problem Solved
 University student clubs often struggle with manual event registrations, unverified attendance records, and non-transparent voting mechanisms. The **ELA Portal** provides a centralized, role-governed digital hub that enables:
 - **Self-Service Member Onboarding:** Seamless sign-up and authentication powered by OpenID Connect (OIDC).
 - **Granular Role-Based Access Control (RBAC):** Distinct capability tiers for General Members vs. Executive Board members (President, VPs, Secretaries).
@@ -14,14 +14,14 @@ University student clubs often struggle with manual event registrations, unverif
 
 ---
 
-## 🔐 WSO2 Asgardeo Integration Highlights
+## WSO2 Asgardeo Integration Highlights
 - **OIDC/OAuth 2.0 SPA Authentication:** Integrated via `@asgardeo/auth-react` to handle secure session lifecycle, authorization code flows with PKCE, and token decoding.
 - **Role & Group Claim Mapping:** Custom claim mappings in Asgardeo project schemas allow client-side route guards (`ProtectedRoute`) to dynamically enforce role access without hardcoded user lists.
 - **Identity Federation & Self-Registration:** Configured via the Asgardeo Admin Console to enable automated onboarding with zero server-side authentication overhead.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## Architecture & Tech Stack
 - **Frontend:** React (Vite) + Tailwind CSS (Custom ELA Brand Palette) + Lucide Icons
 - **Identity & Access Management:** WSO2 Asgardeo
 - **Persistence & Real-Time Engine:** Firebase Cloud Firestore
@@ -29,7 +29,7 @@ University student clubs often struggle with manual event registrations, unverif
 
 ---
 
-## 🚀 Local Setup & Installation
+## Local Setup & Installation
 
 ### 1. Clone & Install Dependencies
 \`\`\`bash
