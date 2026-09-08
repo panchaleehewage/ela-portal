@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { useAuthContext } from '@asgardeo/auth-react';
 import {
   BookOpen,
@@ -11,7 +11,6 @@ import {
   User,
   Sparkles,
   Mic,
-  BookMarked,
   FileText,
   GraduationCap
 } from 'lucide-react';
@@ -167,7 +166,7 @@ function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-100/80 text-ela-orange text-xs font-bold uppercase tracking-widest border border-orange-200/60 shadow-xs">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            Faculty of Business · NSBM Green University
+            NSBM Green University
           </div>
 
           {/* Headline */}
@@ -181,7 +180,7 @@ function Home() {
           {/* Body */}
           <p className="text-ela-gray text-base leading-relaxed max-w-lg">
             Established in 2019, the English Literary Association (ELA) is a university-wide creative
-            home comprising over 250 undergraduates. Operating under the Faculty of Business, ELA
+            home comprising over 250 undergraduates. Operating under the English Language Unit of the university, ELA
             unites passionate readers, writers, poets, and performing artists.
           </p>
 
@@ -244,9 +243,6 @@ function Home() {
       <section className="max-w-6xl mx-auto px-6 pb-20 space-y-8">
         <div className="text-center space-y-2">
           <h2 className="font-serif text-2xl sm:text-3xl font-bold text-ela-dark">Our Core Initiatives</h2>
-          <p className="text-sm text-ela-gray max-w-xl mx-auto">
-            Four pillars that define the ELA experience for every member.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

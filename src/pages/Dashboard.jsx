@@ -12,13 +12,11 @@ import {
   MapPin,
   Clock,
   BookOpen,
-  Award,
   CheckCircle2
 } from 'lucide-react';
 import { db } from '../firebase';
 import {
   doc,
-  getDoc,
   setDoc,
   collection,
   query,
